@@ -1,0 +1,487 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum user_status {
+  active
+  inactive
+}
+
+enum user_role {
+  SYSTEM_OWNER
+  RESTAURANT_OWNER
+}
+
+enum restaurant_status {
+  active
+  suspended
+  expired
+}
+
+enum subscription_status {
+  active
+  expired
+  canceled
+}
+
+enum order_status {
+  pending
+  paid
+  preparing
+  completed
+  canceled
+}
+
+enum payment_status {
+  pending
+  paid
+  failed
+  refunded
+}
+
+enum call_status {
+  ongoing
+  completed
+  failed
+  transferred
+}
+
+enum call_type {
+  inbound
+  outbound
+}
+
+
+enum printer_status {
+  online
+  offline
+}
+
+enum agent_status {
+  active
+  inactive
+}
+
+model users {
+  id String @id @default(uuid())
+
+  email String @unique
+  password String
+
+  first_name String
+  last_name String
+
+  avatar String?
+
+  phone String?
+  country String?
+
+  role user_role
+
+  status user_status
+
+  is_verified Boolean
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  restaurants      restaurants[]
+  user_restaurants user_restaurant[]
+}
+
+model restaurants {
+  id String @id @default(uuid())
+
+  name String
+
+  owner_id String
+  owner    users  @relation(fields: [owner_id], references: [id])
+
+  phone String?
+  email String?
+
+  address String?
+
+  status restaurant_status
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user_restaurants user_restaurant[]
+  subscriptions    subscriptions[]
+  agents           agents?
+  customers        customers[]
+  calls            calls[]
+  orders           orders[]
+  sms_logs         sms_logs[]
+  printers         printers[]
+  pos_integrations pos_integrations[]
+  usage_logs       usage_logs[]
+  settings         restaurant_settings?
+}
+
+// ─── USER RESTAURANT ───────────────────
+
+model user_restaurant {
+  id String @id @default(uuid())
+
+  user_id       String
+  user          users       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  restaurant_id String
+  restaurant    restaurants @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+
+  role user_role
+
+  created_at DateTime @default(now())
+}
+
+// ─── PLANS ─────────────────────────────
+
+model plans {
+  id String @id @default(uuid())
+
+  name String
+
+  monthly_price Float
+  yearly_price Float
+
+  stripe_monthly_price_id String
+  stripe_yearly_price_id String
+
+  call_limit Int
+  order_limit Int
+
+  features String[]
+
+  subscriptions subscriptions[]
+}
+
+// ─── SUBSCRIPTIONS ─────────────────────
+
+model subscriptions {
+  id String @id @default(uuid())
+
+  restaurant_id String
+  restaurant    restaurants @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+  plan_id       String
+  plan          plans       @relation(fields: [plan_id], references: [id])
+
+  status subscription_status
+
+  start_date DateTime @default(now())
+  end_date DateTime @updatedAt
+
+  usages subscription_usage[]
+}
+
+model subscription_usage {
+  id String @id @default(uuid())
+
+  subscription_id String
+  subscription    subscriptions @relation(fields: [subscription_id], references: [id], onDelete: Cascade)
+
+  total_calls Int
+  total_orders Int
+
+  current_month DateTime @default(now())
+} 
+
+// ─── AGENTS ────────────────────────────
+
+model agents {
+  id String @id @default(uuid())
+
+  restaurant_id String @unique
+  restaurant    restaurants @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+
+  agent_name String
+
+  twilio_number String
+  vapi_assistant_id String
+
+  manager_number String
+
+  prompt String
+
+  status agent_status
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  calls calls[]
+}
+
+// ─── CUSTOMERS ─────────────────────────
+
+model customers {
+  id String @id @default(uuid())
+
+  restaurant_id String
+  restaurant    restaurants @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+
+  name String
+
+  phone String
+  email String
+
+  total_orders Int
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  calls    calls[]
+  orders   orders[]
+  sms_logs sms_logs[]
+}
+
+// ─── CALLS ─────────────────────────────
+
+model calls {
+  id String @id @default(uuid())
+
+  restaurant_id String
+  restaurant    restaurants @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+
+  customer_id String
+  customer    customers @relation(fields: [customer_id], references: [id])
+
+  agent_id String
+  agent    agents @relation(fields: [agent_id], references: [id])
+
+  type call_type
+
+  status call_status
+
+  recording_url String
+
+  transcript String
+
+  duration Int
+
+  start_time DateTime @default(now())
+  end_time DateTime @updatedAt
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  orders orders[]
+}
+
+// ─── ORDERS ────────────────────────────
+
+model orders {
+  id String @id @default(uuid())
+
+  restaurant_id String
+  restaurant    restaurants @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+
+  customer_id String
+  customer    customers @relation(fields: [customer_id], references: [id])
+
+  call_id String
+  call    calls @relation(fields: [call_id], references: [id])
+
+  order_number String
+
+  order_status order_status
+
+  payment_status payment_status
+
+  notes String
+
+  pickup_time DateTime @default(now())
+
+  subtotal Float
+  tax Float
+  total Float
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  items      order_items[]
+  payments   payments[]
+  sms_logs   sms_logs[]
+  print_jobs print_jobs[]
+}
+
+model order_items {
+  id String @id @default(uuid())
+
+  order_id String
+  order    orders @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  quantity Int
+
+  unit_price Float
+
+  subtotal Float
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+} 
+
+// ─── PAYMENTS ──────────────────────────
+
+model payments {
+  id String @id @default(uuid())
+
+  order_id String
+  order    orders @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  stripe_payment_intent String
+
+  payment_link String
+
+  amount Float
+
+  status payment_status
+
+  paid_at DateTime @default(now())
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+// ─── SMS LOGS ──────────────────────────
+
+model sms_logs {
+  id String @id @default(uuid())
+
+  restaurant_id String
+  restaurant    restaurants @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+
+  customer_id String
+  customer    customers @relation(fields: [customer_id], references: [id])
+
+  order_id String
+  order    orders @relation(fields: [order_id], references: [id])
+
+  phone String
+
+  message String
+
+  status String
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+// ─── AUDIO CACHE ───────────────────────
+
+model audio_cache {
+  id String @id @default(uuid())
+
+  hash String @unique
+
+  text String
+
+  audio_url String
+
+  hit_count Int
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+// ─── PRINTERS ──────────────────────────
+
+model printers {
+  id String @id @default(uuid())
+
+  restaurant_id String
+  restaurant    restaurants @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+
+  device_name String
+
+  serial_number String
+
+  status printer_status
+
+  last_seen DateTime @default(now())
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  jobs print_jobs[]
+}
+
+model print_jobs {
+  id String @id @default(uuid())
+
+  printer_id String
+  printer    printers @relation(fields: [printer_id], references: [id], onDelete: Cascade)
+  order_id   String
+  order      orders @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  status String
+
+  retry_count Int
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+// ─── POS INTEGRATIONS ──────────────────
+
+model pos_integrations {
+  id String @id @default(uuid())
+
+  restaurant_id String
+  restaurant    restaurants @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+
+  provider String
+
+  api_key String
+
+  external_store_id String
+
+  is_active Boolean
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+// ─── ANALYTICS ─────────────────────────
+
+model usage_logs {
+  id String @id @default(uuid())
+
+  restaurant_id String
+  restaurant    restaurants @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+
+  total_calls Int
+
+  total_orders Int
+
+  total_duration Int
+
+  revenue Float
+
+  date DateTime @default(now())
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+// ─── SETTINGS ──────────────────────────
+
+model restaurant_settings {
+  id String @id @default(uuid())
+
+  restaurant_id String @unique
+  restaurant    restaurants @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
+
+  business_hours Json
+
+  timezone String
+
+  currency String
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
