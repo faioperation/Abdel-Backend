@@ -34,6 +34,10 @@ const moduleRoutes = [
     path: "/system-owner/subscription-billing",
     route: SubscriptionBillingRouter,
   },
+
+  // Business Owner Routes
+
+  
 ];
 
 moduleRoutes.forEach((route) => {
