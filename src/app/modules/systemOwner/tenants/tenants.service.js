@@ -3,14 +3,14 @@ import bcrypt from "bcrypt";
 import prisma from "../../../prisma/client.js";
 import DevBuildError from "../../../lib/DevBuildError.js";
 import { Role } from "../../../utils/role.js";
-import { createImpersonationTokens } from "../../../utils/userTokenGenerator.js";
+
 
 const getAllTenantsFromDB = async () => {
-  const tenants = await prisma.business.findMany({
+  const tenants = await prisma.restaurants.findMany({
     include: {
       subscriptions: {
         orderBy: {
-          endDate: "desc",
+          end_date: "desc",
         },
         take: 1,
         include: {
@@ -19,7 +19,7 @@ const getAllTenantsFromDB = async () => {
       },
     },
     orderBy: {
-      createdAt: "desc",
+      created_at: "desc",
     },
   });
 
@@ -29,11 +29,10 @@ const getAllTenantsFromDB = async () => {
     return {
       id: tenant.id,
       name: tenant.name,
-      business_type: tenant.businessType,
       plan: latestSubscription ? latestSubscription.plan.name : "No Plan",
       status: tenant.status,
-      expiry_date: latestSubscription ? latestSubscription.endDate : null,
-      created_at: tenant.createdAt,
+      expiry_date: latestSubscription ? latestSubscription.end_date : null,
+      created_at: tenant.created_at,
     };
   });
 
@@ -41,7 +40,7 @@ const getAllTenantsFromDB = async () => {
 };
 
 const getTenantByIdFromDB = async (id) => {
-  const tenant = await prisma.business.findUnique({
+  const tenant = await prisma.restaurants.findUnique({
     where: {
       id,
     },
@@ -49,21 +48,9 @@ const getTenantByIdFromDB = async (id) => {
       owner: {
         select: {
           email: true,
-          firstName: true,
-          lastName: true,
+          first_name: true,
+          last_name: true,
           phone: true,
-        },
-      },
-      invoices: {
-        orderBy: {
-          createdAt: "desc",
-        },
-        include: {
-          subscription: {
-            include: {
-              plan: true,
-            },
-          },
         },
       },
     },
@@ -73,24 +60,14 @@ const getTenantByIdFromDB = async (id) => {
     throw new DevBuildError("Tenant not found", StatusCodes.NOT_FOUND);
   }
 
-  // Format billing history
-  const billingHistory = tenant.invoices.map((invoice) => ({
-    date: invoice.createdAt,
-    plan: invoice.subscription?.plan?.name || "N/A",
-    invoice_no: invoice.invoiceNo,
-    amount: invoice.amount,
-    status: invoice.status,
-  }));
-
   return {
     id: tenant.id,
     name: tenant.name,
     email: tenant.owner?.email,
     phone: tenant.owner?.phone,
-    business_type: tenant.businessType,
-    joined_date: tenant.createdAt,
+    joined_date: tenant.created_at,
     status: tenant.status,
-    billing_history: billingHistory,
+    billing_history: [],
   };
 };
 
@@ -102,11 +79,10 @@ const createTenantInDB = async (payload) => {
     password,
     business_name,
     phone,
-    business_type,
   } = payload;
 
   // 1. Check if user already exists
-  const existingUser = await prisma.user.findUnique({
+  const existingUser = await prisma.users.findUnique({
     where: { email },
   });
 
@@ -122,153 +98,86 @@ const createTenantInDB = async (payload) => {
 
   // 3. Sequential transactional creation
   return await prisma.$transaction(async (tx) => {
-    // Create the Business Owner
-    const owner = await tx.user.create({
+    // Create the Restaurant Owner
+    const owner = await tx.users.create({
       data: {
-        firstName: first_name,
-        lastName: last_name,
+        first_name,
+        last_name,
         email,
         password: hashedPassword,
-        role: Role.BUSINESS_OWNER,
-        isVerified: true, // System owner created accounts are verified by default
+        role: "RESTAURANT_OWNER",
+        is_verified: true, // System owner created accounts are verified by default
         phone: phone,
+        status: "active",
       },
     });
 
-    // Create the Business
-    const business = await tx.business.create({
+    // Create the Restaurant
+    const restaurant = await tx.restaurants.create({
       data: {
         name: business_name,
-        ownerId: owner.id,
+        owner_id: owner.id,
         status: "active",
-        businessType: business_type,
       },
     });
 
-    // Create user_business link
-    await tx.userBusiness.create({
+    // Create user_restaurant link
+    await tx.user_restaurant.create({
       data: {
-        userId: owner.id,
-        businessId: business.id,
-        role: "OWNER",
+        user_id: owner.id,
+        restaurant_id: restaurant.id,
+        role: "RESTAURANT_OWNER",
       },
     });
 
-    return { business, owner };
+    return { restaurant, owner };
   });
 };
 
 const updateTenantInDB = async (id, payload) => {
-  const result = await prisma.business.update({
-    where: {
-      id,
-    },
-    data: payload,
-  });
+  return await prisma.$transaction(async (tx) => {
+    const restaurant = await tx.restaurants.update({
+      where: {
+        id,
+      },
+      data: payload,
+    });
 
-  return result;
+    if (payload.status) {
+      const userStatus = payload.status === "active" ? "active" : "inactive";
+      await tx.users.update({
+        where: { id: restaurant.owner_id },
+        data: { status: userStatus },
+      });
+    }
+
+    return restaurant;
+  });
 };
 
 const deleteTenantFromDB = async (id) => {
-  // 1. Fetch business to get ownerId
-  const business = await prisma.business.findUnique({
+  const restaurant = await prisma.restaurants.findUnique({
     where: { id },
-    select: { ownerId: true },
+    select: { owner_id: true },
   });
 
-  if (!business) {
+  if (!restaurant) {
     throw new DevBuildError("Tenant not found", StatusCodes.NOT_FOUND);
   }
 
-  const ownerId = business.ownerId;
+  const ownerId = restaurant.owner_id;
 
-  // 2. Fetch training sessions and calls to get their IDs for sub-deletion
-  const trainingSessions = await prisma.trainingSession.findMany({
-    where: { businessId: id },
-    select: { id: true },
-  });
-  const sessionIds = trainingSessions.map((s) => s.id);
-
-  const calls = await prisma.call.findMany({
-    where: { businessId: id },
-    select: { id: true },
-  });
-  const callIds = calls.map((c) => c.id);
-
-  // 3. Perform transactional deletion
-  console.log(`🗑️ Deleting tenant ${id} and owner ${ownerId}`);
   return await prisma.$transaction(async (tx) => {
-    // Delete files in sessions
-    if (sessionIds.length > 0) {
-      await tx.trainingFile.deleteMany({
-        where: { sessionId: { in: sessionIds } },
-      });
-    }
-
-    // Delete call data
-    if (callIds.length > 0) {
-      await tx.callSummary.deleteMany({
-        where: { callId: { in: callIds } },
-      });
-    }
-
-    // Delete business-related records
-    await tx.trainingSession.deleteMany({ where: { businessId: id } });
-    await tx.call.deleteMany({ where: { businessId: id } });
-    await tx.invoice.deleteMany({ where: { businessId: id } });
-    await tx.subscription.deleteMany({ where: { businessId: id } });
-    await tx.apiKey.deleteMany({ where: { businessId: id } });
-    await tx.usageLog.deleteMany({ where: { businessId: id } });
-    await tx.userBusiness.deleteMany({ where: { businessId: id } });
-    await tx.businessSetting.deleteMany({ where: { businessId: id } });
-    await tx.integration.deleteMany({ where: { businessId: id } });
-
-    // Delete the business
-    await tx.business.delete({
+    // Delete the restaurant (which cascades to all its related tables)
+    await tx.restaurants.delete({
       where: { id },
     });
 
-    // Finally delete the owner
-    console.log(`✅ Deleting owner ${ownerId}`);
-    return await tx.user.delete({
+    // Finally delete the owner user
+    return await tx.users.delete({
       where: { id: ownerId },
     });
   });
-};
-
-const impersonateTenantInDB = async (tenantId, systemOwnerId) => {
-  const business = await prisma.business.findUnique({
-    where: { id: tenantId },
-    include: {
-      owner: true,
-    },
-  });
-
-  if (!business) {
-    throw new DevBuildError("Tenant not found", StatusCodes.NOT_FOUND);
-  }
-
-  const owner = business.owner;
-  if (!owner) {
-    throw new DevBuildError("Tenant owner not found", StatusCodes.NOT_FOUND);
-  }
-
-  const tokens = createImpersonationTokens(owner, systemOwnerId);
-
-  return {
-    tokens,
-    user: {
-      id: owner.id,
-      firstName: owner.firstName,
-      lastName: owner.lastName,
-      email: owner.email,
-      role: owner.role,
-    },
-    business: {
-      id: business.id,
-      name: business.name,
-    },
-  };
 };
 
 export const TenantsService = {
@@ -277,5 +186,4 @@ export const TenantsService = {
   getTenantByIdFromDB,
   updateTenantInDB,
   deleteTenantFromDB,
-  impersonateTenantInDB,
 };

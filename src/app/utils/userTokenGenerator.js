@@ -60,3 +60,27 @@ export const createNewAccessTokenUsingRefreshToken = async (
 
   return accessToken;
 };
+
+//  CREATE IMPERSONATION TOKENS
+export const createImpersonationTokens = (user, systemOwnerId) => {
+  const jwtPayload = {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    impersonatorId: systemOwnerId,
+  };
+
+  const accessToken = generateToken(
+    jwtPayload,
+    envVars.JWT_SECRET_TOKEN,
+    envVars.JWT_EXPIRES_IN,
+  );
+
+  const refreshToken = generateToken(
+    jwtPayload,
+    envVars.JWT_REFRESH_TOKEN,
+    envVars.JWT_REFRESH_EXPIRES_IN,
+  );
+
+  return { accessToken, refreshToken };
+};

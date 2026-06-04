@@ -38,11 +38,4 @@ router.delete(
   checkAuthMiddleware(Role.SYSTEM_OWNER),
   TenantsController.deleteTenant,
 );
-
-router.post(
-  "/:id/impersonate",
-  checkAuthMiddleware(Role.SYSTEM_OWNER),
-  TenantsController.impersonateTenant,
-);
-
 export const TenantsRouter = router;
