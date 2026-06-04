@@ -2,13 +2,13 @@ import prisma from "../../../prisma/client.js";
 
 // Fetch all telephony numbers/agents from database
 const getAllTelephonyFromDB = async () => {
-  return await prisma.agent.findMany({
+  const agents = await prisma.agents.findMany({
     select: {
       id: true,
-      twilioNumber: true,
-      managerNumber: true,
-      vapiAgentId: true,
-      business: {
+      twilio_number: true,
+      manager_number: true,
+      vapi_assistant_id: true,
+      restaurant: {
         select: {
           id: true,
           name: true,
@@ -16,21 +16,29 @@ const getAllTelephonyFromDB = async () => {
       },
     },
     orderBy: {
-      twilioNumber: "asc",
+      twilio_number: "asc",
     },
   });
+
+  return agents.map((agent) => ({
+    id: agent.id,
+    twilioNumber: agent.twilio_number,
+    managerNumber: agent.manager_number,
+    vapiAgentId: agent.vapi_assistant_id,
+    business: agent.restaurant,
+  }));
 };
 
 // Fetch a single telephony/agent entry by ID
 const getTelephonyByIdFromDB = async (id) => {
-  return await prisma.agent.findUnique({
+  const agent = await prisma.agents.findUnique({
     where: { id },
     select: {
       id: true,
-      twilioNumber: true,
-      managerNumber: true,
-      vapiAgentId: true,
-      business: {
+      twilio_number: true,
+      manager_number: true,
+      vapi_assistant_id: true,
+      restaurant: {
         select: {
           id: true,
           name: true,
@@ -38,14 +46,24 @@ const getTelephonyByIdFromDB = async (id) => {
       },
     },
   });
+
+  if (!agent) return null;
+
+  return {
+    id: agent.id,
+    twilioNumber: agent.twilio_number,
+    managerNumber: agent.manager_number,
+    vapiAgentId: agent.vapi_assistant_id,
+    business: agent.restaurant,
+  };
 };
 
 // Create (or rather, link and update) a telephony/agent configuration in database
 const createTelephonyInDB = async (payload) => {
   const { twilioNumber, managerNumber, vapiAgentId } = payload;
 
-  const existingAgent = await prisma.agent.findUnique({
-    where: { vapiAgentId },
+  const existingAgent = await prisma.agents.findUnique({
+    where: { vapi_assistant_id: vapiAgentId },
   });
 
   if (!existingAgent) {
@@ -54,31 +72,38 @@ const createTelephonyInDB = async (payload) => {
 
   // Check if numbers are already configured (i.e., not the placeholder "TBD")
   const isTwilioConfigured =
-    existingAgent.twilioNumber &&
-    existingAgent.twilioNumber !== "TBD" &&
-    existingAgent.twilioNumber !== "";
+    existingAgent.twilio_number &&
+    existingAgent.twilio_number !== "TBD" &&
+    existingAgent.twilio_number !== "";
   const isManagerConfigured =
-    existingAgent.managerNumber &&
-    existingAgent.managerNumber !== "TBD" &&
-    existingAgent.managerNumber !== "";
+    existingAgent.manager_number &&
+    existingAgent.manager_number !== "TBD" &&
+    existingAgent.manager_number !== "";
 
   if (isTwilioConfigured && isManagerConfigured) {
     return "ALREADY_EXISTS";
   }
 
-  return await prisma.agent.update({
+  const updatedAgent = await prisma.agents.update({
     where: { id: existingAgent.id },
     data: {
-      twilioNumber,
-      managerNumber,
+      twilio_number: twilioNumber,
+      manager_number: managerNumber,
     },
     select: {
       id: true,
-      twilioNumber: true,
-      managerNumber: true,
-      vapiAgentId: true,
+      twilio_number: true,
+      manager_number: true,
+      vapi_assistant_id: true,
     },
   });
+
+  return {
+    id: updatedAgent.id,
+    twilioNumber: updatedAgent.twilio_number,
+    managerNumber: updatedAgent.manager_number,
+    vapiAgentId: updatedAgent.vapi_assistant_id,
+  };
 };
 
 // Update an existing telephony/agent configuration in database
@@ -86,36 +111,50 @@ const updateTelephonyInDB = async (id, payload) => {
   const { twilioNumber, managerNumber } = payload;
 
   const updateData = {};
-  if (twilioNumber !== undefined) updateData.twilioNumber = twilioNumber;
-  if (managerNumber !== undefined) updateData.managerNumber = managerNumber;
+  if (twilioNumber !== undefined) updateData.twilio_number = twilioNumber;
+  if (managerNumber !== undefined) updateData.manager_number = managerNumber;
 
-  return await prisma.agent.update({
+  const updatedAgent = await prisma.agents.update({
     where: { id },
     data: updateData,
     select: {
       id: true,
-      twilioNumber: true,
-      managerNumber: true,
-      vapiAgentId: true,
+      twilio_number: true,
+      manager_number: true,
+      vapi_assistant_id: true,
     },
   });
+
+  return {
+    id: updatedAgent.id,
+    twilioNumber: updatedAgent.twilio_number,
+    managerNumber: updatedAgent.manager_number,
+    vapiAgentId: updatedAgent.vapi_assistant_id,
+  };
 };
 
 // Reset a telephony/agent configuration to defaults in database (delete equivalent)
 const deleteTelephonyFromDB = async (id) => {
-  return await prisma.agent.update({
+  const updatedAgent = await prisma.agents.update({
     where: { id },
     data: {
-      twilioNumber: "TBD",
-      managerNumber: "TBD",
+      twilio_number: "TBD",
+      manager_number: "TBD",
     },
     select: {
       id: true,
-      twilioNumber: true,
-      managerNumber: true,
-      vapiAgentId: true,
+      twilio_number: true,
+      manager_number: true,
+      vapi_assistant_id: true,
     },
   });
+
+  return {
+    id: updatedAgent.id,
+    twilioNumber: updatedAgent.twilio_number,
+    managerNumber: updatedAgent.manager_number,
+    vapiAgentId: updatedAgent.vapi_assistant_id,
+  };
 };
 
 export const TelephonyService = {

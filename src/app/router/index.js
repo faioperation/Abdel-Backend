@@ -2,6 +2,7 @@ import { Router } from "express";
 import { OtpRouter } from "../modules/otp/otp.route.js";
 import { AuthRouter } from "../modules/auth/auth.route.js";
 import { TenantsRouter } from "../modules/systemOwner/tenants/tenants.route.js";
+import { TelephonyRouter } from "../modules/systemOwner/telephony/telephony.route.js";
 import { SubscriptionBillingRouter } from "../modules/systemOwner/subscription_billing/subscription_billing.route.js";
 
 export const router = Router();
@@ -22,6 +23,11 @@ const moduleRoutes = [
   {
     path: "/system-owner/tenants",
     route: TenantsRouter,
+  },
+
+  {
+    path: "/system-owner/telephony",
+    route: TelephonyRouter,
   },
 
   {

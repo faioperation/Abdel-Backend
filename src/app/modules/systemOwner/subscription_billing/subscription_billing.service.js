@@ -1,20 +1,30 @@
 import prisma from "../../../prisma/client.js";
 
 const getAllPlansFromDB = async () => {
-  const result = await prisma.plan.findMany({
+  const plans = await prisma.plans.findMany({
     orderBy: {
-      priceMonthly: "asc",
+      monthly_price: "asc",
     },
   });
-  return result;
+  return plans.map((plan) => ({
+    id: plan.id,
+    name: plan.name,
+    monthlyPrice: plan.monthly_price,
+    yearlyPrice: plan.yearly_price,
+    stripeMonthlyPriceId: plan.stripe_monthly_price_id,
+    stripeYearlyPriceId: plan.stripe_yearly_price_id,
+    callLimit: plan.call_limit,
+    orderLimit: plan.order_limit,
+    features: plan.features,
+  }));
 };
 
 const getSubscriptionDashboardDataFromDB = async () => {
   const now = new Date();
   const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  // 1. Total Revenue (Paid Invoices)
-  const totalRevenueAggregate = await prisma.invoice.aggregate({
+  // 1. Total Revenue (Paid Payments)
+  const totalRevenueAggregate = await prisma.payments.aggregate({
     _sum: {
       amount: true,
     },
@@ -23,41 +33,36 @@ const getSubscriptionDashboardDataFromDB = async () => {
     },
   });
 
-  // 2. This Month Revenue (Paid Invoices)
-  const monthlyRevenueAggregate = await prisma.invoice.aggregate({
+  // 2. This Month Revenue (Paid Payments)
+  const monthlyRevenueAggregate = await prisma.payments.aggregate({
     _sum: {
       amount: true,
     },
     where: {
       status: "paid",
-      createdAt: {
+      created_at: {
         gte: firstDayOfMonth,
       },
     },
   });
 
   // 3. Active Plans Count
-  const activePlansCount = await prisma.subscription.count({
+  const activePlansCount = await prisma.subscriptions.count({
     where: {
       status: "active",
     },
   });
 
-  // 4. Recent Invoices
-  const recentInvoices = await prisma.invoice.findMany({
+  // 4. Recent Payments (formatted as Invoices for dashboard)
+  const recentPayments = await prisma.payments.findMany({
     take: 10,
     orderBy: {
-      createdAt: "desc",
+      created_at: "desc",
     },
     include: {
-      business: {
-        select: {
-          name: true,
-        },
-      },
-      subscription: {
+      order: {
         include: {
-          plan: {
+          restaurant: {
             select: {
               name: true,
             },
@@ -67,15 +72,15 @@ const getSubscriptionDashboardDataFromDB = async () => {
     },
   });
 
-  // Format invoices for UI
-  const formattedInvoices = recentInvoices.map((invoice) => ({
-    invoice_no: invoice.invoiceNo,
-    company_name: invoice.business?.name || "N/A",
-    plan: invoice.subscription?.plan?.name || "N/A",
-    amount: invoice.amount,
-    expiry_date: invoice.subscription?.endDate || null,
-    status: invoice.status,
-    billing_cycle: invoice.billingCycle,
+  // Format payments for UI
+  const formattedInvoices = recentPayments.map((payment) => ({
+    invoice_no: payment.stripe_payment_intent || payment.id,
+    company_name: payment.order?.restaurant?.name || "N/A",
+    plan: "Order Payment",
+    amount: payment.amount,
+    expiry_date: null,
+    status: payment.status,
+    billing_cycle: "one-time",
   }));
 
   return {
