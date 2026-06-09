@@ -4,6 +4,7 @@ import { AuthRouter } from "../modules/auth/auth.route.js";
 import { TenantsRouter } from "../modules/systemOwner/tenants/tenants.route.js";
 import { TelephonyRouter } from "../modules/systemOwner/telephony/telephony.route.js";
 import { SubscriptionBillingRouter } from "../modules/systemOwner/subscription_billing/subscription_billing.route.js";
+import { AiTrainingRouter } from "../modules/businessOwner/ai-training/ai-training.route.js";
 
 export const router = Router();
 const moduleRoutes = [
@@ -36,11 +37,13 @@ const moduleRoutes = [
   },
 
   // Business Owner Routes
-
-  
-  
+  {
+    path: "/business-owner/ai-training",
+    route: AiTrainingRouter,
+  },
 ];
 
 moduleRoutes.forEach((route) => {
   router.use(route.path, route.route);
 });
+

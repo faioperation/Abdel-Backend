@@ -14,6 +14,7 @@ const loadEnvVars = () => {
     "DATABASE_URL",
     "BACKEND_URL",
     "REDIS_URL",
+    "AI_SERVICE_URL",
   ];
 
   requiredVars.forEach((key) => {
@@ -40,6 +41,10 @@ const loadEnvVars = () => {
 
     // Redis
     REDIS_URL: process.env.REDIS_URL,
+    
+    // AI Service URL
+    AI_SERVICE_URL: process.env.AI_SERVICE_URL,
+
     // node mailer (SMTP)
     EMAIL_SENDER: {
       SMTP_HOST: process.env.SMTP_HOST,
