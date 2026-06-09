@@ -94,7 +94,7 @@ const getCallHistoryFromVapi = async ({ userId, agentId }) => {
 
     // Cost formatted (estimation based on standard VAPI rates: $0.00086 / second)
     const costVal = durationVal * 0.00086;
-    const cost = `$${costVal.toFixed(4)}`;
+    const cost = `$${costVal.toFixed(2)}`;
 
     // Transcript
     const transcript = call.transcript || "";

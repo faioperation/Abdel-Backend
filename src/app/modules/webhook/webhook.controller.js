@@ -4,15 +4,13 @@ import { WebhookService } from "./webhook.service.js";
 const handleVapiWebhook = async (req, res) => {
   try {
     const payload = req.body;
-    console.log("🔥 Vapi Webhook payload received:", JSON.stringify(payload, null, 2));
 
     // Vapi events contain the payload under message field
     const message = payload?.message;
     
     if (message && message.type === "end-of-call-report") {
-      const call = message.call;
       // Process call report asynchronously
-      WebhookService.saveCallFromWebhook(call).catch((err) => {
+      WebhookService.saveCallFromWebhook(message).catch((err) => {
         console.error("Error processing end-of-call-report webhook:", err);
       });
     } else {
