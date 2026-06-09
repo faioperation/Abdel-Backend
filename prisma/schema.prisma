@@ -114,7 +114,7 @@ model restaurants {
 
   user_restaurants user_restaurant[]
   subscriptions    subscriptions[]
-  agents           agents?
+  agents           agents[]
   customers        customers[]
   calls            calls[]
   orders           orders[]
@@ -196,7 +196,7 @@ model subscription_usage {
 model agents {
   id String @id @default(uuid())
 
-  restaurant_id String @unique
+  restaurant_id String
   restaurant    restaurants @relation(fields: [restaurant_id], references: [id], onDelete: Cascade)
 
   agent_name String

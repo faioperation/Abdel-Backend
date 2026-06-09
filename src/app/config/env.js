@@ -15,6 +15,7 @@ const loadEnvVars = () => {
     "BACKEND_URL",
     "REDIS_URL",
     "AI_SERVICE_URL",
+    "VAPI_API_KEY",
   ];
 
   requiredVars.forEach((key) => {
@@ -44,6 +45,9 @@ const loadEnvVars = () => {
     
     // AI Service URL
     AI_SERVICE_URL: process.env.AI_SERVICE_URL,
+
+    // Vapi Key
+    VAPI_API_KEY: process.env.VAPI_API_KEY,
 
     // node mailer (SMTP)
     EMAIL_SENDER: {

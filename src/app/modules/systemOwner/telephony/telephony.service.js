@@ -62,7 +62,7 @@ const getTelephonyByIdFromDB = async (id) => {
 const createTelephonyInDB = async (payload) => {
   const { twilioNumber, managerNumber, vapiAgentId } = payload;
 
-  const existingAgent = await prisma.agents.findUnique({
+  const existingAgent = await prisma.agents.findFirst({
     where: { vapi_assistant_id: vapiAgentId },
   });
 

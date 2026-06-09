@@ -39,6 +39,40 @@ const createAgent = async (req, res) => {
   }
 };
 
+const deleteAgent = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const agentId = req.params.id;
+
+    const result = await AiTrainingService.deleteAgentInVapiAndDB({ userId, agentId });
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      message: "Agent deleted successfully",
+      data: result,
+    });
+  } catch (error) {
+    return handleError(res, error);
+  }
+};
+
+const getAgentsByRestaurant = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const result = await AiTrainingService.getAgentsByRestaurant({ userId });
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      message: "Agents fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    return handleError(res, error);
+  }
+};
+
 export const AiTrainingController = {
   createAgent,
+  deleteAgent,
+  getAgentsByRestaurant,
 };

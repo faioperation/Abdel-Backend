@@ -17,4 +17,16 @@ router.post(
   AiTrainingController.createAgent,
 );
 
+router.delete(
+  "/delete/:id",
+  checkAuthMiddleware(Role.RESTAURANT_OWNER),
+  AiTrainingController.deleteAgent,
+);
+
+router.get(
+  "/",
+  checkAuthMiddleware(Role.RESTAURANT_OWNER),
+  AiTrainingController.getAgentsByRestaurant,
+);
+
 export const AiTrainingRouter = router;
