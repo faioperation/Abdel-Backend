@@ -5,6 +5,8 @@ import { TenantsRouter } from "../modules/systemOwner/tenants/tenants.route.js";
 import { TelephonyRouter } from "../modules/systemOwner/telephony/telephony.route.js";
 import { SubscriptionBillingRouter } from "../modules/systemOwner/subscription_billing/subscription_billing.route.js";
 import { AiTrainingRouter } from "../modules/businessOwner/ai-training/ai-training.route.js";
+import { CallHistoryRouter } from "../modules/businessOwner/call_history/call_history.route.js";
+import { WebhookRouter } from "../modules/webhook/webhook.route.js";
 
 export const router = Router();
 const moduleRoutes = [
@@ -40,6 +42,17 @@ const moduleRoutes = [
   {
     path: "/business-owner/ai-training",
     route: AiTrainingRouter,
+  },
+
+  {
+    path: "/business-owner/call-history",
+    route: CallHistoryRouter,
+  },
+
+  // Webhook Routes
+  {
+    path: "/webhooks",
+    route: WebhookRouter,
   },
 ];
 
