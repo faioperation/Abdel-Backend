@@ -6,6 +6,7 @@ import { TelephonyRouter } from "../modules/systemOwner/telephony/telephony.rout
 import { SubscriptionBillingRouter } from "../modules/systemOwner/subscription_billing/subscription_billing.route.js";
 import { AiTrainingRouter } from "../modules/businessOwner/ai-training/ai-training.route.js";
 import { CallHistoryRouter } from "../modules/businessOwner/call_history/call_history.route.js";
+import { OrderManagmentRouter } from "../modules/businessOwner/order_managment/order_managment.route.js";
 import { WebhookRouter } from "../modules/webhook/webhook.route.js";
 
 export const router = Router();
@@ -47,6 +48,11 @@ const moduleRoutes = [
   {
     path: "/business-owner/call-history",
     route: CallHistoryRouter,
+  },
+
+  {
+    path: "/business-owner/order-managment",
+    route: OrderManagmentRouter,
   },
 
   // Webhook Routes
