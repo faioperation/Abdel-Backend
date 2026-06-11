@@ -116,6 +116,120 @@ const saveCallFromWebhook = async (message) => {
   });
 
   console.log(`Call ${call.id} successfully processed and saved to database.`);
+
+  // 5. Try to extract order details from Vapi's structured data/summary
+  const analysis = message.analysis || {};
+  const structuredData = analysis.structuredData || {};
+
+  // Check if an order was placed
+  const hasOrder = 
+    structuredData.order_placed === true ||
+    structuredData.is_order === true ||
+    (structuredData.items && Array.isArray(structuredData.items) && structuredData.items.length > 0) ||
+    (typeof structuredData.total === "number" && structuredData.total > 0) ||
+    (typeof structuredData.total === "string" && parseFloat(structuredData.total) > 0);
+
+  if (hasOrder) {
+    // Determine total, subtotal, and tax
+    let total = 0.0;
+    if (typeof structuredData.total === "number") {
+      total = structuredData.total;
+    } else if (typeof structuredData.total === "string") {
+      total = parseFloat(structuredData.total) || 0.0;
+    }
+
+    let subtotal = total;
+    if (typeof structuredData.subtotal === "number") {
+      subtotal = structuredData.subtotal;
+    } else if (typeof structuredData.subtotal === "string") {
+      subtotal = parseFloat(structuredData.subtotal) || 0.0;
+    }
+
+    let tax = 0.0;
+    if (typeof structuredData.tax === "number") {
+      tax = structuredData.tax;
+    } else if (typeof structuredData.tax === "string") {
+      tax = parseFloat(structuredData.tax) || 0.0;
+    }
+
+    if (subtotal === total && tax > 0) {
+      subtotal = Math.max(0, total - tax);
+    }
+
+    // Determine pickup time
+    let pickupTime = new Date();
+    if (structuredData.pickup_time) {
+      const parsedDate = new Date(structuredData.pickup_time);
+      if (!isNaN(parsedDate.getTime())) {
+        pickupTime = parsedDate;
+      }
+    } else {
+      pickupTime.setMinutes(pickupTime.getMinutes() + 30); // Default to 30 mins
+    }
+
+    // Format notes/items
+    let notes = "";
+    if (structuredData.items && Array.isArray(structuredData.items)) {
+      notes = JSON.stringify(structuredData.items);
+    } else if (typeof structuredData.notes === "string") {
+      notes = structuredData.notes;
+    } else if (analysis.summary) {
+      notes = analysis.summary;
+    }
+
+    // Check if order already exists for this call to prevent duplicates on retries
+    const existingOrder = await prisma.orders.findFirst({
+      where: { call_id: call.id },
+    });
+
+    if (existingOrder) {
+      await prisma.orders.update({
+        where: { id: existingOrder.id },
+        data: {
+          notes,
+          subtotal,
+          tax,
+          total,
+          pickup_time: pickupTime,
+        },
+      });
+      console.log(`Order updated for call ${call.id}`);
+    } else {
+      // Generate a sequential order number for the restaurant
+      const orderCount = await prisma.orders.count({
+        where: { restaurant_id: restaurantId },
+      });
+      const orderNumber = String(orderCount + 1);
+
+      await prisma.orders.create({
+        data: {
+          restaurant_id: restaurantId,
+          customer_id: customer.id,
+          call_id: call.id,
+          order_number: orderNumber,
+          order_status: "pending",
+          payment_status: "pending",
+          notes,
+          subtotal,
+          tax,
+          total,
+          pickup_time: pickupTime,
+        },
+      });
+
+      // Update customer total_orders count
+      await prisma.customers.update({
+        where: { id: customer.id },
+        data: {
+          total_orders: {
+            increment: 1,
+          },
+        },
+      });
+
+      console.log(`Order created for call ${call.id} with order number: ${orderNumber}`);
+    }
+  }
 };
 
 export const WebhookService = {
