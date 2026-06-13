@@ -5,6 +5,7 @@ import { WebhookService } from "./webhook.service.js";
 const handleVapiWebhook = async (req, res) => {
   try {
     const payload = req.body;
+    console.log("Received Vapi webhook payload:", JSON.stringify(payload, null, 2));
 
     // Vapi events contain the payload under message field
     const message = payload?.message;
@@ -52,6 +53,7 @@ const handleForwardedWebhook = async (req, res) => {
     }
 
     const payload = req.body;
+    console.log("Received forwarded webhook payload:", JSON.stringify(payload, null, 2));
     const message = payload?.message;
 
     if (message && message.type === "end-of-call-report") {

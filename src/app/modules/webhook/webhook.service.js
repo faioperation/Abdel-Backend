@@ -27,6 +27,44 @@ const saveCallFromWebhook = async (message) => {
 
   // 2. Find or create a customer record using phone number
   const phone = call.customer?.number || "Unknown";
+  let name = call.customer?.name || "Unknown";
+
+  // Check if we can find the customer name from tool calls or message
+  if (name === "Unknown") {
+    if (message.customer?.name) {
+      name = message.customer.name;
+    }
+  }
+
+  // Parse tool calls if any to see if we can find customer_name/customerName and/or order details
+  let toolCallData = null;
+  const toolCalls = message.toolCalls || call.toolCalls || message.toolCallList || [];
+  for (const tc of toolCalls) {
+    if (tc.function?.arguments) {
+      try {
+        const args = typeof tc.function.arguments === "string" 
+          ? JSON.parse(tc.function.arguments) 
+          : tc.function.arguments;
+        if (args) {
+          if (name === "Unknown") {
+            name = args.customer_name || args.customerName || args.name || "Unknown";
+          }
+          if (tc.function.name === "save_order") {
+            toolCallData = args;
+          }
+        }
+      } catch (e) {
+        // Ignore parse errors
+      }
+    }
+  }
+
+  // Also check message.analysis?.structuredData if name is still Unknown
+  if (name === "Unknown") {
+    const structuredData = message.analysis?.structuredData || {};
+    name = structuredData.customer_name || structuredData.customerName || "Unknown";
+  }
+
   let customer = await prisma.customers.findFirst({
     where: {
       phone,
@@ -38,11 +76,16 @@ const saveCallFromWebhook = async (message) => {
     customer = await prisma.customers.create({
       data: {
         restaurant_id: restaurantId,
-        name: "Unknown",
+        name,
         phone,
         email: "",
         total_orders: 0,
       },
+    });
+  } else if (customer.name === "Unknown" && name !== "Unknown") {
+    customer = await prisma.customers.update({
+      where: { id: customer.id },
+      data: { name },
     });
   }
 
@@ -119,7 +162,18 @@ const saveCallFromWebhook = async (message) => {
 
   // 5. Try to extract order details from Vapi's structured data/summary
   const analysis = message.analysis || {};
-  const structuredData = analysis.structuredData || {};
+  let structuredData = analysis.structuredData || {};
+
+  // If structuredData doesn't have order items or total, but we got toolCallData from a "save_order" tool call, merge/use it!
+  if (toolCallData && (!structuredData.items || structuredData.items.length === 0) && !structuredData.total) {
+    structuredData = {
+      ...structuredData,
+      items: toolCallData.order_items || toolCallData.items || [],
+      total: toolCallData.total_price || toolCallData.total || 0,
+      order_placed: true,
+      is_order: true
+    };
+  }
 
   // Check if an order was placed
   const hasOrder = 
