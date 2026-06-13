@@ -16,6 +16,7 @@ const loadEnvVars = () => {
     "REDIS_URL",
     "AI_SERVICE_URL",
     "VAPI_API_KEY",
+    "WEBHOOK_FORWARD_SECRET",
   ];
 
   requiredVars.forEach((key) => {
@@ -48,6 +49,9 @@ const loadEnvVars = () => {
 
     // Vapi Key
     VAPI_API_KEY: process.env.VAPI_API_KEY,
+
+    // Webhook Forwarding Secret
+    WEBHOOK_FORWARD_SECRET: process.env.WEBHOOK_FORWARD_SECRET,
 
     // node mailer (SMTP)
     EMAIL_SENDER: {
