@@ -1,5 +1,4 @@
 import { StatusCodes } from "http-status-codes";
-import { envVars } from "../../config/env.js";
 import { WebhookService } from "./webhook.service.js";
 
 const handleVapiWebhook = async (req, res) => {
@@ -36,22 +35,6 @@ const handleVapiWebhook = async (req, res) => {
 
 const handleForwardedWebhook = async (req, res) => {
   try {
-    // Validate secret key from headers (check both x-api-key and Authorization)
-    const apiKey = req.headers["x-api-key"] || req.headers["authorization"];
-    const expectedSecret = envVars.WEBHOOK_FORWARD_SECRET;
-
-    let token = apiKey;
-    if (token && token.startsWith("Bearer ")) {
-      token = token.slice(7);
-    }
-
-    if (!token || token !== expectedSecret) {
-      return res.status(StatusCodes.UNAUTHORIZED).json({
-        success: false,
-        message: "Unauthorized: Invalid or missing webhook secret key",
-      });
-    }
-
     const payload = req.body;
     console.log("Received forwarded webhook payload:", JSON.stringify(payload, null, 2));
     const message = payload?.message;

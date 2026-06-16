@@ -5,6 +5,7 @@ const getAllTelephonyFromDB = async () => {
   const agents = await prisma.agents.findMany({
     select: {
       id: true,
+      agent_name: true,
       twilio_number: true,
       manager_number: true,
       vapi_assistant_id: true,
@@ -22,6 +23,7 @@ const getAllTelephonyFromDB = async () => {
 
   return agents.map((agent) => ({
     id: agent.id,
+    agentName: agent.agent_name,
     twilioNumber: agent.twilio_number,
     managerNumber: agent.manager_number,
     vapiAgentId: agent.vapi_assistant_id,
@@ -35,6 +37,7 @@ const getTelephonyByIdFromDB = async (id) => {
     where: { id },
     select: {
       id: true,
+      agent_name: true,
       twilio_number: true,
       manager_number: true,
       vapi_assistant_id: true,
@@ -51,6 +54,7 @@ const getTelephonyByIdFromDB = async (id) => {
 
   return {
     id: agent.id,
+    agentName: agent.agent_name,
     twilioNumber: agent.twilio_number,
     managerNumber: agent.manager_number,
     vapiAgentId: agent.vapi_assistant_id,
@@ -92,6 +96,7 @@ const createTelephonyInDB = async (payload) => {
     },
     select: {
       id: true,
+      agent_name: true,
       twilio_number: true,
       manager_number: true,
       vapi_assistant_id: true,
@@ -100,6 +105,7 @@ const createTelephonyInDB = async (payload) => {
 
   return {
     id: updatedAgent.id,
+    agentName: updatedAgent.agent_name,
     twilioNumber: updatedAgent.twilio_number,
     managerNumber: updatedAgent.manager_number,
     vapiAgentId: updatedAgent.vapi_assistant_id,
@@ -119,6 +125,7 @@ const updateTelephonyInDB = async (id, payload) => {
     data: updateData,
     select: {
       id: true,
+      agent_name: true,
       twilio_number: true,
       manager_number: true,
       vapi_assistant_id: true,
@@ -127,6 +134,7 @@ const updateTelephonyInDB = async (id, payload) => {
 
   return {
     id: updatedAgent.id,
+    agentName: updatedAgent.agent_name,
     twilioNumber: updatedAgent.twilio_number,
     managerNumber: updatedAgent.manager_number,
     vapiAgentId: updatedAgent.vapi_assistant_id,
@@ -143,6 +151,7 @@ const deleteTelephonyFromDB = async (id) => {
     },
     select: {
       id: true,
+      agent_name: true,
       twilio_number: true,
       manager_number: true,
       vapi_assistant_id: true,
@@ -151,6 +160,7 @@ const deleteTelephonyFromDB = async (id) => {
 
   return {
     id: updatedAgent.id,
+    agentName: updatedAgent.agent_name,
     twilioNumber: updatedAgent.twilio_number,
     managerNumber: updatedAgent.manager_number,
     vapiAgentId: updatedAgent.vapi_assistant_id,
