@@ -9,24 +9,55 @@ const saveCallFromWebhook = async (message) => {
   const call = message.call;
 
   // 1. Find local agent matching the vapi assistant id
-  if (!call.assistantId) {
-    console.warn(`Call ${call.id} does not have an assistantId`);
-    return;
+  let agent = null;
+  if (call.assistantId) {
+    agent = await prisma.agents.findFirst({
+      where: { vapi_assistant_id: call.assistantId },
+    });
+  } else {
+    console.warn(`Call ${call.id} does not have an assistantId in payload`);
   }
 
-  const agent = await prisma.agents.findFirst({
-    where: { vapi_assistant_id: call.assistantId },
-  });
+  // Fallback 1: Try finding by twilio_number if assistantId match failed
+  if (!agent) {
+    const twilioNumber = call.phoneNumber?.number || 
+                         (typeof call.phoneNumber === "string" ? call.phoneNumber : null) ||
+                         call.vapiPhoneNumber ||
+                         call.vapiPhoneNumber?.number;
+    
+    if (twilioNumber) {
+      const cleanNumber = twilioNumber.replace(/^\+/, "");
+      agent = await prisma.agents.findFirst({
+        where: {
+          twilio_number: {
+            contains: cleanNumber,
+          },
+        },
+      });
+    }
+  }
+
+  // Fallback 2: Fall back to the first available agent in the database so that the call is saved
+  if (!agent) {
+    agent = await prisma.agents.findFirst();
+    if (agent) {
+      console.warn(`No local agent found for Vapi assistant ID: ${call.assistantId || "none"}. Falling back to agent: ${agent.agent_name} (${agent.id}) so that the call can be saved.`);
+    }
+  }
 
   if (!agent) {
-    console.warn(`No local agent found for Vapi assistant ID: ${call.assistantId}`);
+    console.error(`Cannot save call ${call.id} because no agents exist in the database.`);
     return;
   }
 
   const restaurantId = agent.restaurant_id;
 
   // 2. Find or create a customer record using phone number
-  const phone = call.customer?.number || "Unknown";
+  const phone = call.customer?.number || 
+                call.customer?.phone || 
+                (typeof call.customer === "string" ? call.customer : null) || 
+                call.customerNumber || 
+                "Unknown";
   let name = call.customer?.name || "Unknown";
 
   // Check if we can find the customer name from tool calls or message
