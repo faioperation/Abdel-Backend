@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Test Agent via Call</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="card">
+        <header class="card-header">
+          <div class="title-row">
+            <span class="icon" aria-hidden="true">🎙️</span>
+            <h1>Test Agent via Call</h1>
+          </div>
+          <p>Select an agent and start a browser voice call through Vapi.</p>
+        </header>
+
+        <div class="settings">
+          <label>
+            API Base URL
+            <input id="apiBaseUrl" type="text" value="http://localhost:8001" />
+          </label>
+          <label>
+            Access Token (Bearer)
+            <input
+              id="accessToken"
+              type="password"
+              placeholder="Paste your JWT access token"
+            />
+          </label>
+        </div>
+
+        <label class="agent-select-label" for="agentSelect">
+          Choose an Agent
+        </label>
+        <select id="agentSelect">
+          <option value="">-- Choose an Agent --</option>
+        </select>
+
+        <div id="statusPanel" class="status-panel">
+          <p id="statusText">Select an agent and click Voice to start a call.</p>
+        </div>
+
+        <div class="actions">
+          <button id="refreshBtn" type="button" class="btn btn-secondary">
+            Refresh Agents
+          </button>
+          <button id="voiceBtn" type="button" class="btn btn-voice" disabled>
+            <span aria-hidden="true">🎤</span>
+            Voice
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js?v=5"></script>
+  </body>
+</html>

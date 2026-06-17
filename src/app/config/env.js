@@ -16,6 +16,7 @@ const loadEnvVars = () => {
     "REDIS_URL",
     "AI_SERVICE_URL",
     "VAPI_API_KEY",
+    "VAPI_PUBLIC_KEY",
     "WEBHOOK_FORWARD_SECRET",
   ];
 
@@ -47,8 +48,9 @@ const loadEnvVars = () => {
     // AI Service URL
     AI_SERVICE_URL: process.env.AI_SERVICE_URL,
 
-    // Vapi Key
+    // Vapi Keys
     VAPI_API_KEY: process.env.VAPI_API_KEY,
+    VAPI_PUBLIC_KEY: process.env.VAPI_PUBLIC_KEY,
 
     // Webhook Forwarding Secret
     WEBHOOK_FORWARD_SECRET: process.env.WEBHOOK_FORWARD_SECRET,
