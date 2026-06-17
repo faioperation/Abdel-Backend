@@ -13,6 +13,12 @@ router.get(
   TelephonyController.getAllTelephony,
 );
 
+router.get(
+  "/unconnected-agents/:businessId",
+  checkAuthMiddleware(Role.SYSTEM_OWNER),
+  TelephonyController.getUnconnectedAgentsByBusiness,
+);
+
 router.post(
   "/",
   checkAuthMiddleware(Role.SYSTEM_OWNER),

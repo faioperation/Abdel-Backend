@@ -38,4 +38,5 @@ router.delete(
   checkAuthMiddleware(Role.SYSTEM_OWNER),
   TenantsController.deleteTenant,
 );
+
 export const TenantsRouter = router;

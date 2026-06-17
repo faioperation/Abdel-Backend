@@ -64,10 +64,13 @@ const getTelephonyByIdFromDB = async (id) => {
 
 // Create (or rather, link and update) a telephony/agent configuration in database
 const createTelephonyInDB = async (payload) => {
-  const { twilioNumber, managerNumber, vapiAgentId } = payload;
+  const { twilioNumber, managerNumber, vapiAgentId, businessId } = payload;
 
   const existingAgent = await prisma.agents.findFirst({
-    where: { vapi_assistant_id: vapiAgentId },
+    where: { 
+      vapi_assistant_id: vapiAgentId,
+      restaurant_id: businessId,
+    },
   });
 
   if (!existingAgent) {
@@ -84,8 +87,22 @@ const createTelephonyInDB = async (payload) => {
     existingAgent.manager_number !== "TBD" &&
     existingAgent.manager_number !== "";
 
-  if (isTwilioConfigured && isManagerConfigured) {
+  if (isTwilioConfigured || isManagerConfigured) {
     return "ALREADY_EXISTS";
+  }
+
+  // Check if twilioNumber is already assigned to another agent
+  const twilioNumberInUse = await prisma.agents.findFirst({
+    where: {
+      twilio_number: twilioNumber,
+      NOT: {
+        id: existingAgent.id,
+      },
+    },
+  });
+
+  if (twilioNumberInUse) {
+    return "NUMBER_IN_USE";
   }
 
   const updatedAgent = await prisma.agents.update({
@@ -167,10 +184,41 @@ const deleteTelephonyFromDB = async (id) => {
   };
 };
 
+// Fetch all unconnected agents belonging to a specific business/restaurant
+const getUnconnectedAgentsByBusinessFromDB = async (businessId) => {
+  const agents = await prisma.agents.findMany({
+    where: {
+      restaurant_id: businessId,
+      OR: [
+        { twilio_number: "TBD" },
+        { twilio_number: "" },
+        { manager_number: "TBD" },
+        { manager_number: "" },
+      ],
+    },
+    select: {
+      id: true,
+      agent_name: true,
+      vapi_assistant_id: true,
+      twilio_number: true,
+      manager_number: true,
+    },
+  });
+
+  return agents.map((agent) => ({
+    id: agent.id,
+    agentName: agent.agent_name,
+    vapiAgentId: agent.vapi_assistant_id,
+    twilioNumber: agent.twilio_number,
+    managerNumber: agent.manager_number,
+  }));
+};
+
 export const TelephonyService = {
   getAllTelephonyFromDB,
   getTelephonyByIdFromDB,
   createTelephonyInDB,
   updateTelephonyInDB,
   deleteTelephonyFromDB,
+  getUnconnectedAgentsByBusinessFromDB,
 };

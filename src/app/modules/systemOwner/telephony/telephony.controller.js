@@ -57,7 +57,7 @@ const createTelephony = async (req, res) => {
 
     if (!result) {
       throw new DevBuildError(
-        "Agent not found with the provided vapiAgentId",
+        "Agent not found with the provided vapiAgentId and businessId",
         StatusCodes.NOT_FOUND,
       );
     }
@@ -65,6 +65,13 @@ const createTelephony = async (req, res) => {
     if (result === "ALREADY_EXISTS") {
       throw new DevBuildError(
         "Telephony number configuration already exists for this agent",
+        StatusCodes.CONFLICT,
+      );
+    }
+
+    if (result === "NUMBER_IN_USE") {
+      throw new DevBuildError(
+        "This Twilio number is already assigned to another agent",
         StatusCodes.CONFLICT,
       );
     }
@@ -130,10 +137,26 @@ const deleteTelephony = async (req, res) => {
   }
 };
 
+const getUnconnectedAgentsByBusiness = async (req, res) => {
+  try {
+    const { businessId } = req.params;
+    const result = await TelephonyService.getUnconnectedAgentsByBusinessFromDB(businessId);
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      message: "Unconnected agents fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    return handleError(res, error);
+  }
+};
+
 export const TelephonyController = {
   getAllTelephony,
   getTelephonyById,
   createTelephony,
   updateTelephony,
   deleteTelephony,
+  getUnconnectedAgentsByBusiness,
 };
