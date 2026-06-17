@@ -164,30 +164,44 @@ const saveCallFromWebhook = async (message) => {
   const startTime = message.startedAt ? new Date(message.startedAt) : (call.startedAt ? new Date(call.startedAt) : new Date());
   const endTime = message.endedAt ? new Date(message.endedAt) : (call.endedAt ? new Date(call.endedAt) : new Date());
 
-  // 4. Upsert the call record in database
-  await prisma.calls.upsert({
+  // 4. Upsert/Update the call record in database with merge logic to prevent overwriting with empty data
+  const existingCall = await prisma.calls.findUnique({
     where: { id: call.id },
-    create: {
-      id: call.id,
-      restaurant_id: restaurantId,
-      customer_id: customer.id,
-      agent_id: agent.id,
-      type,
-      status,
-      recording_url: recordingUrl,
-      transcript: transcript,
-      duration,
-      start_time: startTime,
-      end_time: endTime,
-    },
-    update: {
-      status,
-      recording_url: recordingUrl,
-      transcript: transcript,
-      duration,
-      end_time: endTime,
-    },
   });
+
+  if (existingCall) {
+    const terminalStatuses = ["completed", "failed", "transferred"];
+    const finalStatus = terminalStatuses.includes(existingCall.status)
+      ? existingCall.status
+      : status;
+
+    await prisma.calls.update({
+      where: { id: call.id },
+      data: {
+        status: finalStatus,
+        recording_url: recordingUrl || existingCall.recording_url,
+        transcript: transcript || existingCall.transcript,
+        duration: duration || existingCall.duration,
+        end_time: endTime || existingCall.end_time,
+      },
+    });
+  } else {
+    await prisma.calls.create({
+      data: {
+        id: call.id,
+        restaurant_id: restaurantId,
+        customer_id: customer.id,
+        agent_id: agent.id,
+        type,
+        status,
+        recording_url: recordingUrl,
+        transcript: transcript,
+        duration,
+        start_time: startTime,
+        end_time: endTime,
+      },
+    });
+  }
 
   console.log(`Call ${call.id} successfully processed and saved to database.`);
 

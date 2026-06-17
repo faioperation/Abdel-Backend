@@ -194,6 +194,13 @@ const getAgentsByRestaurant = async ({ userId }) => {
   // 1. Find the restaurant associated with the logged-in user
   const userRestaurant = await prisma.user_restaurant.findFirst({
     where: { user_id: userId },
+    include: {
+      restaurant: {
+        select: {
+          name: true,
+        },
+      },
+    },
   });
 
   if (!userRestaurant) {
@@ -204,6 +211,7 @@ const getAgentsByRestaurant = async ({ userId }) => {
   }
 
   const restaurantId = userRestaurant.restaurant_id;
+  const restaurantName = userRestaurant.restaurant?.name || "Unknown";
 
   // 2. Fetch all agents belonging to this restaurant
   const agents = await prisma.agents.findMany({
@@ -213,6 +221,7 @@ const getAgentsByRestaurant = async ({ userId }) => {
   return agents.map((agent) => ({
     id: agent.id,
     restaurantId: agent.restaurant_id,
+    restaurantName: restaurantName,
     agentName: agent.agent_name,
     twilioNumber: agent.twilio_number,
     vapiAssistantId: agent.vapi_assistant_id,
