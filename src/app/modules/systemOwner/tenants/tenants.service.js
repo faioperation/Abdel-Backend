@@ -8,6 +8,11 @@ import { Role } from "../../../utils/role.js";
 const getAllTenantsFromDB = async () => {
   const tenants = await prisma.restaurants.findMany({
     include: {
+      owner: {
+        select: {
+          email: true,
+        },
+      },
       subscriptions: {
         orderBy: {
           end_date: "desc",
@@ -29,6 +34,7 @@ const getAllTenantsFromDB = async () => {
     return {
       id: tenant.id,
       name: tenant.name,
+      email: tenant.owner?.email || null,
       plan: latestSubscription ? latestSubscription.plan.name : "No Plan",
       status: tenant.status,
       expiry_date: latestSubscription ? latestSubscription.end_date : null,
