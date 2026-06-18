@@ -23,8 +23,6 @@ app.use(passport.initialize());
 // Routes
 app.use("/api", router);
 app.use("/uploads", express.static("uploads"));
-app.use("/test-agent", express.static("test-agent-page"));
-app.use("/test_agent", express.static("test-agent-page"));
 
 // Health check
 app.get("/", (req, res) => {

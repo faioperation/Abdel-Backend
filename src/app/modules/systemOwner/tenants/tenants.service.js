@@ -53,6 +53,7 @@ const getTenantByIdFromDB = async (id) => {
           phone: true,
         },
       },
+      agents: true,
     },
   });
 
@@ -68,6 +69,17 @@ const getTenantByIdFromDB = async (id) => {
     joined_date: tenant.created_at,
     status: tenant.status,
     billing_history: [],
+    agents: tenant.agents.map((agent) => ({
+      id: agent.id,
+      agentName: agent.agent_name,
+      twilioNumber: agent.twilio_number,
+      vapiAssistantId: agent.vapi_assistant_id,
+      managerNumber: agent.manager_number,
+      prompt: agent.prompt,
+      status: agent.status,
+      createdAt: agent.created_at,
+      updatedAt: agent.updated_at,
+    })),
   };
 };
 
