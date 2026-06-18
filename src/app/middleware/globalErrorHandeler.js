@@ -1,3 +1,4 @@
+import { ZodError } from "zod";
 import { Prisma } from "@prisma/client";
 import { AppError } from "../errorHelper/appError.js";
 import { envVars } from "../config/env.js";
@@ -11,8 +12,20 @@ export const globalErrorHandler = (err, req, res, next) => {
   let message = "Something went wrong!";
   let errorSource = [];
 
+  // ✅ Zod Validation Errors
+  if (err.name === "ZodError" || err instanceof ZodError) {
+    statusCode = 400;
+    message = err.issues.map((issue) => issue.message).join(". ");
+    errorSource = err.issues.map((issue) => {
+      return {
+        path: issue.path[issue.path.length - 1] || "",
+        message: issue.message,
+      };
+    });
+  }
+
   // ✅ Prisma Known Errors
-  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+  else if (err instanceof Prisma.PrismaClientKnownRequestError) {
     switch (err.code) {
       case "P2002":
         statusCode = 409;
