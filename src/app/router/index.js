@@ -8,6 +8,8 @@ import { AiTrainingRouter } from "../modules/businessOwner/ai-training/ai-traini
 import { CallHistoryRouter } from "../modules/businessOwner/call_history/call_history.route.js";
 import { OrderManagmentRouter } from "../modules/businessOwner/order_managment/order_managment.route.js";
 import { WebhookRouter } from "../modules/webhook/webhook.route.js";
+import { DashboardRouter } from "../modules/systemOwner/dashboard/dashboard.route.js";
+
 
 export const router = Router();
 const moduleRoutes = [
@@ -38,6 +40,12 @@ const moduleRoutes = [
     path: "/system-owner/subscription-billing",
     route: SubscriptionBillingRouter,
   },
+
+  {
+    path: "/system-owner/dashboard",
+    route: DashboardRouter,
+  },
+
 
   // Business Owner Routes
   {
