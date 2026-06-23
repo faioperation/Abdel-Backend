@@ -11,4 +11,10 @@ router.get(
   DashboardController.getTenantUsage,
 );
 
+router.get(
+  "/",
+  checkAuthMiddleware(Role.SYSTEM_OWNER),
+  DashboardController.getDashboardOverview,
+);
+
 export const DashboardRouter = router;

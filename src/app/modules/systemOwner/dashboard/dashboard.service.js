@@ -82,6 +82,244 @@ const getTenantUsageFromDB = async () => {
   return formattedUsage;
 };
 
+const getDashboardOverviewFromDB = async () => {
+  const now = new Date();
+
+  // Helper to get start of a month relative to current month
+  const getStartOfMonth = (offset = 0) => {
+    return new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  };
+
+  // Helper to get end of a month relative to current month
+  const getEndOfMonth = (offset = 0) => {
+    return new Date(now.getFullYear(), now.getMonth() + offset + 1, 0, 23, 59, 59, 999);
+  };
+
+  const getChangeType = (val) => {
+    if (val > 0) return "increase";
+    if (val < 0) return "decrease";
+    return "neutral";
+  };
+
+  const firstDayOfCurrentMonth = getStartOfMonth(0);
+  const firstDayOfLastMonth = getStartOfMonth(-1);
+
+  // 1. Total Tenants
+  const totalTenantsCount = await prisma.restaurants.count();
+  const tenantsAtStartOfCurrentMonth = await prisma.restaurants.count({
+    where: {
+      created_at: {
+        lt: firstDayOfCurrentMonth,
+      },
+    },
+  });
+  const tenantsPercentageChange = tenantsAtStartOfCurrentMonth > 0
+    ? Number((((totalTenantsCount - tenantsAtStartOfCurrentMonth) / tenantsAtStartOfCurrentMonth) * 100).toFixed(2))
+    : 0;
+  const tenantsAddedLastMonth = await prisma.restaurants.count({
+    where: {
+      created_at: {
+        gte: firstDayOfLastMonth,
+        lt: firstDayOfCurrentMonth,
+      },
+    },
+  });
+
+  const totalTenantsChart = [];
+  for (let i = -5; i <= 0; i++) {
+    const endOfMonth = getEndOfMonth(i);
+    const count = await prisma.restaurants.count({
+      where: {
+        created_at: {
+          lte: endOfMonth,
+        },
+      },
+    });
+    totalTenantsChart.push(count);
+  }
+
+  // 2. Active Subscriptions
+  const activeSubscriptionsCount = await prisma.subscriptions.count({
+    where: {
+      status: "active",
+    },
+  });
+  const activeStartBeforeThisMonth = await prisma.subscriptions.count({
+    where: {
+      status: "active",
+      start_date: {
+        lt: firstDayOfCurrentMonth,
+      },
+    },
+  });
+  const newActiveThisMonth = activeSubscriptionsCount - activeStartBeforeThisMonth;
+  const activePercentageChange = activeStartBeforeThisMonth > 0
+    ? Number(((newActiveThisMonth / activeStartBeforeThisMonth) * 100).toFixed(2))
+    : 0;
+  const activeStartedLastMonth = await prisma.subscriptions.count({
+    where: {
+      status: "active",
+      start_date: {
+        gte: firstDayOfLastMonth,
+        lt: firstDayOfCurrentMonth,
+      },
+    },
+  });
+
+  const activeSubscriptionsChart = [];
+  for (let i = -5; i <= 0; i++) {
+    const startOfMonth = getStartOfMonth(i);
+    const endOfMonth = getEndOfMonth(i);
+    const count = await prisma.subscriptions.count({
+      where: {
+        start_date: {
+          lte: endOfMonth,
+        },
+        end_date: {
+          gte: startOfMonth,
+        },
+      },
+    });
+    activeSubscriptionsChart.push(count);
+  }
+
+  // 3. Monthly Revenue
+  const revenueThisMonthSum = await prisma.payments.aggregate({
+    _sum: {
+      amount: true,
+    },
+    where: {
+      status: "paid",
+      created_at: {
+        gte: firstDayOfCurrentMonth,
+      },
+    },
+  });
+  const revenueThisMonth = revenueThisMonthSum._sum.amount || 0;
+
+  const revenueLastMonthSum = await prisma.payments.aggregate({
+    _sum: {
+      amount: true,
+    },
+    where: {
+      status: "paid",
+      created_at: {
+        gte: firstDayOfLastMonth,
+        lt: firstDayOfCurrentMonth,
+      },
+    },
+  });
+  const revenueLastMonth = revenueLastMonthSum._sum.amount || 0;
+
+  const revenuePercentageChange = revenueLastMonth > 0
+    ? Number((((revenueThisMonth - revenueLastMonth) / revenueLastMonth) * 100).toFixed(2))
+    : 0;
+
+  const monthlyRevenueChart = [];
+  for (let i = -5; i <= 0; i++) {
+    const startOfMonth = getStartOfMonth(i);
+    const endOfMonth = getEndOfMonth(i);
+    const monthlySum = await prisma.payments.aggregate({
+      _sum: {
+        amount: true,
+      },
+      where: {
+        status: "paid",
+        created_at: {
+          gte: startOfMonth,
+          lte: endOfMonth,
+        },
+      },
+    });
+    monthlyRevenueChart.push(monthlySum._sum.amount || 0);
+  }
+
+  // 4. Expiring Tenants (Restaurants with status suspended or expired)
+  const expiringTenantsCount = await prisma.restaurants.count({
+    where: {
+      status: {
+        in: ["expired", "suspended"],
+      },
+    },
+  });
+
+  const expiringStartBeforeThisMonth = await prisma.restaurants.count({
+    where: {
+      status: {
+        in: ["expired", "suspended"],
+      },
+      updated_at: {
+        lt: firstDayOfCurrentMonth,
+      },
+    },
+  });
+
+  const newExpiringThisMonth = expiringTenantsCount - expiringStartBeforeThisMonth;
+  const expiringPercentageChange = expiringStartBeforeThisMonth > 0
+    ? Number(((newExpiringThisMonth / expiringStartBeforeThisMonth) * 100).toFixed(2))
+    : 0;
+
+  const expiringLastMonth = await prisma.restaurants.count({
+    where: {
+      status: {
+        in: ["expired", "suspended"],
+      },
+      updated_at: {
+        gte: firstDayOfLastMonth,
+        lt: firstDayOfCurrentMonth,
+      },
+    },
+  });
+
+  const expiringTenantsChart = [];
+  for (let i = -5; i <= 0; i++) {
+    const endOfMonth = getEndOfMonth(i);
+    const count = await prisma.restaurants.count({
+      where: {
+        status: {
+          in: ["expired", "suspended"],
+        },
+        updated_at: {
+          lte: endOfMonth,
+        },
+      },
+    });
+    expiringTenantsChart.push(count);
+  }
+
+  return {
+    totalTenants: {
+      count: totalTenantsCount,
+      percentageChange: Math.abs(tenantsPercentageChange),
+      changeType: getChangeType(tenantsPercentageChange),
+      deltaLastMonth: tenantsAddedLastMonth,
+      chartData: totalTenantsChart,
+    },
+    activeSubscriptions: {
+      count: activeSubscriptionsCount,
+      percentageChange: Math.abs(activePercentageChange),
+      changeType: getChangeType(activePercentageChange),
+      deltaLastMonth: activeStartedLastMonth,
+      chartData: activeSubscriptionsChart,
+    },
+    monthlyRevenue: {
+      count: revenueThisMonth,
+      percentageChange: Math.abs(revenuePercentageChange),
+      changeType: getChangeType(revenuePercentageChange),
+      deltaLastMonth: Number((revenueThisMonth - revenueLastMonth).toFixed(2)),
+      chartData: monthlyRevenueChart,
+    },
+    expiringTenants: {
+      count: expiringTenantsCount,
+      percentageChange: Math.abs(expiringPercentageChange),
+      changeType: getChangeType(expiringPercentageChange),
+      deltaLastMonth: expiringLastMonth,
+      chartData: expiringTenantsChart,
+    },
+  };
+};
+
 export const DashboardService = {
   getTenantUsageFromDB,
+  getDashboardOverviewFromDB,
 };

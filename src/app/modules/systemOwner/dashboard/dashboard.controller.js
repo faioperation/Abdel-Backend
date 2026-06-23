@@ -30,6 +30,21 @@ const getTenantUsage = async (req, res) => {
   }
 };
 
+const getDashboardOverview = async (req, res) => {
+  try {
+    const result = await DashboardService.getDashboardOverviewFromDB();
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      message: "Dashboard overview metrics fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    return handleError(res, error);
+  }
+};
+
 export const DashboardController = {
   getTenantUsage,
+  getDashboardOverview,
 };
