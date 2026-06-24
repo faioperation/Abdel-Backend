@@ -18,7 +18,8 @@ const handleError = (res, error) => {
 
 const getTenantUsage = async (req, res) => {
   try {
-    const result = await DashboardService.getTenantUsageFromDB();
+    const { month } = req.query;
+    const result = await DashboardService.getTenantUsageFromDB(month);
 
     return res.status(StatusCodes.OK).json({
       success: true,
@@ -37,6 +38,7 @@ const getDashboardOverview = async (req, res) => {
     return res.status(StatusCodes.OK).json({
       success: true,
       message: "Dashboard overview metrics fetched successfully",
+      timestamp: new Date().toISOString(),
       data: result,
     });
   } catch (error) {

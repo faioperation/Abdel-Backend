@@ -1,6 +1,37 @@
 import prisma from "../../../prisma/client.js";
 
-const getTenantUsageFromDB = async () => {
+const getTenantUsageFromDB = async (monthStr) => {
+  // Determine if we need to filter by date range
+  let dateFilter = undefined;
+
+  if (monthStr !== "all") {
+    let start, end;
+    if (monthStr) {
+      // Parse YYYY-MM
+      const parts = monthStr.split("-");
+      if (parts.length === 2) {
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1; // 0-based month
+        if (!isNaN(year) && !isNaN(month) && month >= 0 && month <= 11) {
+          start = new Date(year, month, 1);
+          end = new Date(year, month + 1, 0, 23, 59, 59, 999);
+        }
+      }
+    }
+
+    // Default to current month if not specified or invalid
+    if (!start || !end) {
+      const now = new Date();
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    }
+
+    dateFilter = {
+      gte: start,
+      lte: end,
+    };
+  }
+
   // 1. Fetch all restaurants (tenants)
   const tenants = await prisma.restaurants.findMany({
     include: {
@@ -25,6 +56,9 @@ const getTenantUsageFromDB = async () => {
   // 2. Fetch call duration sums grouped by restaurant (tenant)
   const restaurantCallStats = await prisma.calls.groupBy({
     by: ["restaurant_id"],
+    where: dateFilter ? {
+      created_at: dateFilter,
+    } : {},
     _sum: {
       duration: true,
     },
@@ -39,6 +73,9 @@ const getTenantUsageFromDB = async () => {
   // 3. Fetch call duration sums grouped by agent
   const agentCallStats = await prisma.calls.groupBy({
     by: ["agent_id"],
+    where: dateFilter ? {
+      created_at: dateFilter,
+    } : {},
     _sum: {
       duration: true,
     },
