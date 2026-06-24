@@ -24,6 +24,7 @@ const getTenantUsage = async (req, res) => {
     return res.status(StatusCodes.OK).json({
       success: true,
       message: "Tenant call usages fetched successfully",
+      timestamp: new Date().toISOString(),
       data: result,
     });
   } catch (error) {
@@ -38,7 +39,6 @@ const getDashboardOverview = async (req, res) => {
     return res.status(StatusCodes.OK).json({
       success: true,
       message: "Dashboard overview metrics fetched successfully",
-      timestamp: new Date().toISOString(),
       data: result,
     });
   } catch (error) {
