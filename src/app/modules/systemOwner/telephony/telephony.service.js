@@ -1,4 +1,7 @@
 import prisma from "../../../prisma/client.js";
+import { envVars } from "../../../config/env.js";
+import DevBuildError from "../../../lib/DevBuildError.js";
+import { StatusCodes } from "http-status-codes";
 
 // Fetch all telephony numbers/agents from database
 const getAllTelephonyFromDB = async () => {
@@ -64,7 +67,7 @@ const getTelephonyByIdFromDB = async (id) => {
 
 // Create (or rather, link and update) a telephony/agent configuration in database
 const createTelephonyInDB = async (payload) => {
-  const { twilioNumber, managerNumber, vapiAgentId, businessId } = payload;
+  const { twilioNumber, vapiAgentId, businessId } = payload;
 
   const existingAgent = await prisma.agents.findFirst({
     where: {
@@ -77,17 +80,13 @@ const createTelephonyInDB = async (payload) => {
     return null;
   }
 
-  // Check if numbers are already configured (i.e., not the placeholder "TBD")
+  // Check if twilioNumber is already configured (i.e., not the placeholder "TBD")
   const isTwilioConfigured =
     existingAgent.twilio_number &&
     existingAgent.twilio_number !== "TBD" &&
     existingAgent.twilio_number !== "";
-  const isManagerConfigured =
-    existingAgent.manager_number &&
-    existingAgent.manager_number !== "TBD" &&
-    existingAgent.manager_number !== "";
 
-  if (isTwilioConfigured || isManagerConfigured) {
+  if (isTwilioConfigured) {
     return "ALREADY_EXISTS";
   }
 
@@ -105,17 +104,44 @@ const createTelephonyInDB = async (payload) => {
     return "NUMBER_IN_USE";
   }
 
+  // Call external AI Service to link the Twilio number to the assistant
+  const aiUrl = `${envVars.AI_SERVICE_URL}/assistant/link-number?assistant_id=${vapiAgentId}`;
+  try {
+    const aiResponse = await fetch(aiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+      body: JSON.stringify({
+        twilio_number: twilioNumber,
+      }),
+    });
+
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      throw new DevBuildError(
+        `Failed to link number on AI Service: ${errorText}`,
+        aiResponse.status || StatusCodes.BAD_GATEWAY,
+      );
+    }
+  } catch (err) {
+    if (err instanceof DevBuildError) throw err;
+    throw new DevBuildError(
+      `Failed to contact AI service: ${err.message}`,
+      StatusCodes.BAD_GATEWAY,
+    );
+  }
+
   const updatedAgent = await prisma.agents.update({
     where: { id: existingAgent.id },
     data: {
       twilio_number: twilioNumber,
-      manager_number: managerNumber,
     },
     select: {
       id: true,
       agent_name: true,
       twilio_number: true,
-      manager_number: true,
       vapi_assistant_id: true,
     },
   });
@@ -124,7 +150,6 @@ const createTelephonyInDB = async (payload) => {
     id: updatedAgent.id,
     agentName: updatedAgent.agent_name,
     twilioNumber: updatedAgent.twilio_number,
-    managerNumber: updatedAgent.manager_number,
     vapiAgentId: updatedAgent.vapi_assistant_id,
   };
 };
