@@ -97,6 +97,59 @@ async function main() {
     console.log(`🔗 Link already exists in user_restaurant`);
   }
 
+  // 5. Seed Plans
+  const plansData = [
+    {
+      name: "Basic",
+      monthly_price: 10,
+      yearly_price: 120,
+      stripe_monthly_price_id: "",
+      stripe_yearly_price_id: "",
+      call_limit: 100,
+      order_limit: 50,
+      features: ["Basic Call Answering", "Standard Support"],
+    },
+    {
+      name: "Pro",
+      monthly_price: 20,
+      yearly_price: 240,
+      stripe_monthly_price_id: "price_1TJwU81tuanUVwVFV4yICkh2",
+      stripe_yearly_price_id: "price_1TJwUZ1tuanUVwVF8nr2nhRx",
+      call_limit: 50,
+      order_limit: 20,
+      features: ["Feature 001 ", "Feature 002"],
+    },
+    {
+      name: "Premium",
+      monthly_price: 30,
+      yearly_price: 360,
+      stripe_monthly_price_id: "",
+      stripe_yearly_price_id: "",
+      call_limit: 0,
+      order_limit: 0,
+      features: ["Unlimited Calls", "Unlimited Orders", "Premium Support"],
+    },
+  ];
+
+  for (const plan of plansData) {
+    const existingPlan = await prisma.plans.findFirst({
+      where: { name: plan.name },
+    });
+
+    if (!existingPlan) {
+      await prisma.plans.create({
+        data: plan,
+      });
+      console.log(`🎁 Plan created: ${plan.name}`);
+    } else {
+      await prisma.plans.update({
+        where: { id: existingPlan.id },
+        data: plan,
+      });
+      console.log(`🎁 Plan updated: ${plan.name}`);
+    }
+  }
+
   console.log("✅ Seeding completed successfully!");
 }
 
