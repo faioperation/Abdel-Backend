@@ -111,7 +111,7 @@ const createTelephonyInDB = async (payload) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Accept": "application/json",
+        Accept: "application/json",
       },
       body: JSON.stringify({
         twilio_number: twilioNumber,
