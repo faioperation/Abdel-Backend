@@ -4,18 +4,23 @@ import { WebhookService } from "./webhook.service.js";
 const handleVapiWebhook = async (req, res) => {
   try {
     const payload = req.body;
-    console.log("Received Vapi webhook payload:", JSON.stringify(payload, null, 2));
+    console.log(
+      "Received Vapi webhook payload:",
+      JSON.stringify(payload, null, 2),
+    );
 
     // Vapi events contain the payload under message field or direct payload
     const message = payload?.message || payload;
-    
+
     if (message && (message.type === "end-of-call-report" || message.call)) {
       // Process call report asynchronously
       WebhookService.saveCallFromWebhook(message).catch((err) => {
         console.error("Error processing webhook call report:", err);
       });
     } else {
-      console.log(`Skipping unsupported webhook message type: ${message?.type || "unknown"}`);
+      console.log(
+        `Skipping unsupported webhook message type: ${message?.type || "unknown"}`,
+      );
     }
 
     // Always return 200 OK to Vapi to prevent retries
@@ -36,7 +41,10 @@ const handleVapiWebhook = async (req, res) => {
 const handleForwardedWebhook = async (req, res) => {
   try {
     const payload = req.body;
-    console.log("Received forwarded webhook payload:", JSON.stringify(payload, null, 2));
+    console.log(
+      "Received forwarded webhook payload:",
+      JSON.stringify(payload, null, 2),
+    );
     // Support both nested message and direct payload
     const message = payload?.message || payload;
 
@@ -46,7 +54,9 @@ const handleForwardedWebhook = async (req, res) => {
         console.error("Error processing forwarded webhook call report:", err);
       });
     } else {
-      console.log(`Skipping unsupported forwarded webhook message type: ${message?.type || "unknown"}`);
+      console.log(
+        `Skipping unsupported forwarded webhook message type: ${message?.type || "unknown"}`,
+      );
     }
 
     return res.status(StatusCodes.OK).json({

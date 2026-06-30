@@ -20,11 +20,12 @@ const saveCallFromWebhook = async (message) => {
 
   // Fallback 1: Try finding by twilio_number if assistantId match failed
   if (!agent) {
-    const twilioNumber = call.phoneNumber?.number || 
-                         (typeof call.phoneNumber === "string" ? call.phoneNumber : null) ||
-                         call.vapiPhoneNumber ||
-                         call.vapiPhoneNumber?.number;
-    
+    const twilioNumber =
+      call.phoneNumber?.number ||
+      (typeof call.phoneNumber === "string" ? call.phoneNumber : null) ||
+      call.vapiPhoneNumber ||
+      call.vapiPhoneNumber?.number;
+
     if (twilioNumber) {
       const cleanNumber = twilioNumber.replace(/^\+/, "");
       agent = await prisma.agents.findFirst({
@@ -41,23 +42,28 @@ const saveCallFromWebhook = async (message) => {
   if (!agent) {
     agent = await prisma.agents.findFirst();
     if (agent) {
-      console.warn(`No local agent found for Vapi assistant ID: ${call.assistantId || "none"}. Falling back to agent: ${agent.agent_name} (${agent.id}) so that the call can be saved.`);
+      console.warn(
+        `No local agent found for Vapi assistant ID: ${call.assistantId || "none"}. Falling back to agent: ${agent.agent_name} (${agent.id}) so that the call can be saved.`,
+      );
     }
   }
 
   if (!agent) {
-    console.error(`Cannot save call ${call.id} because no agents exist in the database.`);
+    console.error(
+      `Cannot save call ${call.id} because no agents exist in the database.`,
+    );
     return;
   }
 
   const restaurantId = agent.restaurant_id;
 
   // 2. Find or create a customer record using phone number
-  const phone = call.customer?.number || 
-                call.customer?.phone || 
-                (typeof call.customer === "string" ? call.customer : null) || 
-                call.customerNumber || 
-                "Unknown";
+  const phone =
+    call.customer?.number ||
+    call.customer?.phone ||
+    (typeof call.customer === "string" ? call.customer : null) ||
+    call.customerNumber ||
+    "Unknown";
   let name = call.customer?.name || "Unknown";
 
   // Check if we can find the customer name from tool calls or message
@@ -69,16 +75,19 @@ const saveCallFromWebhook = async (message) => {
 
   // Parse tool calls if any to see if we can find customer_name/customerName and/or order details
   let toolCallData = null;
-  const toolCalls = message.toolCalls || call.toolCalls || message.toolCallList || [];
+  const toolCalls =
+    message.toolCalls || call.toolCalls || message.toolCallList || [];
   for (const tc of toolCalls) {
     if (tc.function?.arguments) {
       try {
-        const args = typeof tc.function.arguments === "string" 
-          ? JSON.parse(tc.function.arguments) 
-          : tc.function.arguments;
+        const args =
+          typeof tc.function.arguments === "string"
+            ? JSON.parse(tc.function.arguments)
+            : tc.function.arguments;
         if (args) {
           if (name === "Unknown") {
-            name = args.customer_name || args.customerName || args.name || "Unknown";
+            name =
+              args.customer_name || args.customerName || args.name || "Unknown";
           }
           if (tc.function.name === "save_order") {
             toolCallData = args;
@@ -93,7 +102,8 @@ const saveCallFromWebhook = async (message) => {
   // Also check message.analysis?.structuredData if name is still Unknown
   if (name === "Unknown") {
     const structuredData = message.analysis?.structuredData || {};
-    name = structuredData.customer_name || structuredData.customerName || "Unknown";
+    name =
+      structuredData.customer_name || structuredData.customerName || "Unknown";
   }
 
   let customer = await prisma.customers.findFirst({
@@ -135,13 +145,18 @@ const saveCallFromWebhook = async (message) => {
     status = "transferred";
   } else if (
     call.status === "failed" ||
-    (message.endedReason && (message.endedReason.toLowerCase().includes("error") || message.endedReason.toLowerCase().includes("fail")))
+    (message.endedReason &&
+      (message.endedReason.toLowerCase().includes("error") ||
+        message.endedReason.toLowerCase().includes("fail")))
   ) {
     status = "failed";
   }
 
   // Read durationSeconds from message or duration from call
-  let duration = typeof message.durationSeconds === "number" ? Math.round(message.durationSeconds) : 0;
+  let duration =
+    typeof message.durationSeconds === "number"
+      ? Math.round(message.durationSeconds)
+      : 0;
   if (duration === 0 && typeof call.duration === "number") {
     duration = Math.round(call.duration);
   }
@@ -151,18 +166,32 @@ const saveCallFromWebhook = async (message) => {
   }
 
   // Read recordingUrl and transcript from message or call
-  const recordingUrl = message.recordingUrl || 
-                       call.recordingUrl || 
-                       message.artifact?.recordingUrl || 
-                       call.artifact?.recordingUrl || 
-                       message.artifact?.recording?.mono?.combinedUrl || 
-                       call.artifact?.recording?.mono?.combinedUrl || 
-                       "";
+  const recordingUrl =
+    message.recordingUrl ||
+    call.recordingUrl ||
+    message.artifact?.recordingUrl ||
+    call.artifact?.recordingUrl ||
+    message.artifact?.recording?.mono?.combinedUrl ||
+    call.artifact?.recording?.mono?.combinedUrl ||
+    "";
 
-  const transcript = message.transcript || call.transcript || message.artifact?.transcript || call.artifact?.transcript || "";
+  const transcript =
+    message.transcript ||
+    call.transcript ||
+    message.artifact?.transcript ||
+    call.artifact?.transcript ||
+    "";
 
-  const startTime = message.startedAt ? new Date(message.startedAt) : (call.startedAt ? new Date(call.startedAt) : new Date());
-  const endTime = message.endedAt ? new Date(message.endedAt) : (call.endedAt ? new Date(call.endedAt) : new Date());
+  const startTime = message.startedAt
+    ? new Date(message.startedAt)
+    : call.startedAt
+      ? new Date(call.startedAt)
+      : new Date();
+  const endTime = message.endedAt
+    ? new Date(message.endedAt)
+    : call.endedAt
+      ? new Date(call.endedAt)
+      : new Date();
 
   // 4. Upsert/Update the call record in database with merge logic to prevent overwriting with empty data
   const existingCall = await prisma.calls.findUnique({
@@ -210,23 +239,30 @@ const saveCallFromWebhook = async (message) => {
   let structuredData = analysis.structuredData || {};
 
   // If structuredData doesn't have order items or total, but we got toolCallData from a "save_order" tool call, merge/use it!
-  if (toolCallData && (!structuredData.items || structuredData.items.length === 0) && !structuredData.total) {
+  if (
+    toolCallData &&
+    (!structuredData.items || structuredData.items.length === 0) &&
+    !structuredData.total
+  ) {
     structuredData = {
       ...structuredData,
       items: toolCallData.order_items || toolCallData.items || [],
       total: toolCallData.total_price || toolCallData.total || 0,
       order_placed: true,
-      is_order: true
+      is_order: true,
     };
   }
 
   // Check if an order was placed
-  const hasOrder = 
+  const hasOrder =
     structuredData.order_placed === true ||
     structuredData.is_order === true ||
-    (structuredData.items && Array.isArray(structuredData.items) && structuredData.items.length > 0) ||
+    (structuredData.items &&
+      Array.isArray(structuredData.items) &&
+      structuredData.items.length > 0) ||
     (typeof structuredData.total === "number" && structuredData.total > 0) ||
-    (typeof structuredData.total === "string" && parseFloat(structuredData.total) > 0);
+    (typeof structuredData.total === "string" &&
+      parseFloat(structuredData.total) > 0);
 
   if (hasOrder) {
     // Determine total, subtotal, and tax
@@ -326,7 +362,9 @@ const saveCallFromWebhook = async (message) => {
         },
       });
 
-      console.log(`Order created for call ${call.id} with order number: ${orderNumber}`);
+      console.log(
+        `Order created for call ${call.id} with order number: ${orderNumber}`,
+      );
     }
   }
 };

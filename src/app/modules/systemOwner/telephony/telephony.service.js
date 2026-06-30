@@ -67,7 +67,7 @@ const createTelephonyInDB = async (payload) => {
   const { twilioNumber, managerNumber, vapiAgentId, businessId } = payload;
 
   const existingAgent = await prisma.agents.findFirst({
-    where: { 
+    where: {
       vapi_assistant_id: vapiAgentId,
       restaurant_id: businessId,
     },

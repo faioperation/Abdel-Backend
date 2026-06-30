@@ -140,7 +140,8 @@ const deleteTelephony = async (req, res) => {
 const getUnconnectedAgentsByBusiness = async (req, res) => {
   try {
     const { businessId } = req.params;
-    const result = await TelephonyService.getUnconnectedAgentsByBusinessFromDB(businessId);
+    const result =
+      await TelephonyService.getUnconnectedAgentsByBusinessFromDB(businessId);
 
     return res.status(StatusCodes.OK).json({
       success: true,

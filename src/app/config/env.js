@@ -44,7 +44,7 @@ const loadEnvVars = () => {
 
     // Redis
     REDIS_URL: process.env.REDIS_URL,
-    
+
     // AI Service URL
     AI_SERVICE_URL: process.env.AI_SERVICE_URL,
 

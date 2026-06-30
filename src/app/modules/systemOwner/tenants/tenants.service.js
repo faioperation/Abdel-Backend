@@ -4,7 +4,6 @@ import prisma from "../../../prisma/client.js";
 import DevBuildError from "../../../lib/DevBuildError.js";
 import { Role } from "../../../utils/role.js";
 
-
 const getAllTenantsFromDB = async () => {
   const tenants = await prisma.restaurants.findMany({
     include: {
@@ -90,14 +89,8 @@ const getTenantByIdFromDB = async (id) => {
 };
 
 const createTenantInDB = async (payload) => {
-  const {
-    first_name,
-    last_name,
-    email,
-    password,
-    business_name,
-    phone,
-  } = payload;
+  const { first_name, last_name, email, password, business_name, phone } =
+    payload;
 
   // 1. Check if user already exists
   const existingUser = await prisma.users.findUnique({

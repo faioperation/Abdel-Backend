@@ -21,7 +21,10 @@ const getCallHistory = async (req, res) => {
     const userId = req.user.id;
     const { agentId } = req.query;
 
-    const result = await CallHistoryService.getCallHistoryFromVapi({ userId, agentId });
+    const result = await CallHistoryService.getCallHistoryFromVapi({
+      userId,
+      agentId,
+    });
 
     return res.status(StatusCodes.OK).json({
       success: true,

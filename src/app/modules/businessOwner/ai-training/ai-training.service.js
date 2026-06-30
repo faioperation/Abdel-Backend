@@ -38,16 +38,13 @@ const createAgentInVapiAndDB = async ({
   // 3. Request the external AI API
   let response;
   try {
-    response = await fetch(
-      `${envVars.AI_SERVICE_URL}/create-assistant`,
-      {
-        method: "POST",
-        body: formData,
-        headers: {
-          Accept: "application/json",
-        },
+    response = await fetch(`${envVars.AI_SERVICE_URL}/create-assistant`, {
+      method: "POST",
+      body: formData,
+      headers: {
+        Accept: "application/json",
       },
-    );
+    });
   } catch (fetchError) {
     throw new DevBuildError(
       `Failed to contact AI service: ${fetchError.message}`,
@@ -115,10 +112,7 @@ const deleteAgentInVapiAndDB = async ({ userId, agentId }) => {
   });
 
   if (!agent) {
-    throw new DevBuildError(
-      "Assistant not found",
-      StatusCodes.NOT_FOUND,
-    );
+    throw new DevBuildError("Assistant not found", StatusCodes.NOT_FOUND);
   }
 
   // Security check: ensure this agent belongs to the user's restaurant
@@ -142,13 +136,15 @@ const deleteAgentInVapiAndDB = async ({ userId, agentId }) => {
             Authorization: `Bearer ${envVars.VAPI_API_KEY}`,
             Accept: "application/json",
           },
-        }
+        },
       );
 
       // 404 is fine as it means it was already deleted on VAPI
       if (!response.ok && response.status !== 404) {
         const errorText = await response.text();
-        console.error(`Failed to delete assistant ${vapiAssistantId} from VAPI: ${errorText}`);
+        console.error(
+          `Failed to delete assistant ${vapiAssistantId} from VAPI: ${errorText}`,
+        );
         throw new DevBuildError(
           `Failed to delete assistant from VAPI: ${errorText}`,
           response.status || StatusCodes.BAD_GATEWAY,

@@ -44,7 +44,10 @@ const deleteAgent = async (req, res) => {
     const userId = req.user.id;
     const agentId = req.params.id;
 
-    const result = await AiTrainingService.deleteAgentInVapiAndDB({ userId, agentId });
+    const result = await AiTrainingService.deleteAgentInVapiAndDB({
+      userId,
+      agentId,
+    });
 
     return res.status(StatusCodes.OK).json({
       success: true,

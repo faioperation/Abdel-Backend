@@ -2,7 +2,9 @@ import { z } from "zod";
 
 const createTelephonySchema = z.object({
   body: z.object({
-    businessId: z.string({ required_error: "Business ID is required" }).uuid("Invalid Business ID format"),
+    businessId: z
+      .string({ required_error: "Business ID is required" })
+      .uuid("Invalid Business ID format"),
     twilioNumber: z.string({ required_error: "Twilio number is required" }),
     managerNumber: z.string({ required_error: "Manager number is required" }),
     vapiAgentId: z.string({ required_error: "Vapi Agent ID is required" }),
