@@ -7,9 +7,10 @@ import { SubscriptionBillingRouter } from "../modules/systemOwner/subscription_b
 import { AiTrainingRouter } from "../modules/businessOwner/ai-training/ai-training.route.js";
 import { CallHistoryRouter } from "../modules/businessOwner/call_history/call_history.route.js";
 import { OrderManagmentRouter } from "../modules/businessOwner/order_managment/order_managment.route.js";
+import { PaymentRouter } from "../modules/businessOwner/payment/payment.route.js";
+import { SubscriptionPlanRouter } from "../modules/businessOwner/subscription&plan/subscriptionPlan.route.js";
 import { WebhookRouter } from "../modules/webhook/webhook.route.js";
 import { DashboardRouter } from "../modules/systemOwner/dashboard/dashboard.route.js";
-
 
 export const router = Router();
 const moduleRoutes = [
@@ -46,7 +47,6 @@ const moduleRoutes = [
     route: DashboardRouter,
   },
 
-
   // Business Owner Routes
   {
     path: "/business-owner/ai-training",
@@ -63,6 +63,15 @@ const moduleRoutes = [
     route: OrderManagmentRouter,
   },
 
+  {
+    path: "/business-owner/payment",
+    route: PaymentRouter,
+  },
+
+  {
+    path: "/business-owner/subscription-plans",
+    route: SubscriptionPlanRouter,
+  },
 
   // Webhook Routes
   {
