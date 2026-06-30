@@ -167,7 +167,9 @@ const processStripeWebhook = async (event) => {
         data: { status: "expired" },
       });
 
-      console.log(`Subscription deleted/canceled for Restaurant ${restaurantId}`);
+      console.log(
+        `Subscription deleted/canceled for Restaurant ${restaurantId}`,
+      );
     }
   }
 };
