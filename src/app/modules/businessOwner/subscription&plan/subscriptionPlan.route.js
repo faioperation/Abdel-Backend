@@ -9,4 +9,6 @@ router.use(checkAuthMiddleware(Role.RESTAURANT_OWNER));
 
 router.get("/", SubscriptionPlanController.getAllPlans);
 
+router.get("/billing-history", SubscriptionPlanController.getBillingHistory);
+
 export const SubscriptionPlanRouter = router;

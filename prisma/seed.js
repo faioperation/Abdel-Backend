@@ -101,8 +101,8 @@ async function main() {
   const plansData = [
     {
       name: "Basic",
-      monthly_price: 10,
-      yearly_price: 120,
+      monthly_price: 20,
+      yearly_price: 240,
       stripe_monthly_price_id: "",
       stripe_yearly_price_id: "",
       call_limit: 100,
@@ -111,8 +111,8 @@ async function main() {
     },
     {
       name: "Pro",
-      monthly_price: 20,
-      yearly_price: 240,
+      monthly_price: 10,
+      yearly_price: 120,
       stripe_monthly_price_id: "price_1TJwU81tuanUVwVFV4yICkh2",
       stripe_yearly_price_id: "price_1TJwUZ1tuanUVwVF8nr2nhRx",
       call_limit: 50,

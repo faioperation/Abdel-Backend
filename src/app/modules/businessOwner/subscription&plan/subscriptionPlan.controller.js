@@ -30,6 +30,25 @@ const getAllPlans = async (req, res) => {
   }
 };
 
+const getBillingHistory = async (req, res) => {
+  try {
+    const result = await SubscriptionPlanService.getBillingHistory(
+      prisma,
+      req.user,
+      req.query,
+    );
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      message: "Billing history retrieved successfully",
+      meta: result.meta,
+      data: result.data,
+    });
+  } catch (error) {
+    return handleError(res, error);
+  }
+};
+
 export const SubscriptionPlanController = {
   getAllPlans,
+  getBillingHistory,
 };
