@@ -9,4 +9,9 @@ router.post("/call", WebhookController.handleVapiWebhook);
 // Secure forwarded webhook route called by external AI developer
 router.post("/forwarded-call", WebhookController.handleForwardedWebhook);
 
+// Star CloudPRNT Printer endpoints
+router.post("/printer/poll", WebhookController.handlePrinterPoll);
+router.get("/printer/poll", WebhookController.handlePrinterGetJob);
+router.delete("/printer/poll", WebhookController.handlePrinterConfirmJob);
+
 export const WebhookRouter = router;

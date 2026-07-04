@@ -336,7 +336,7 @@ const saveCallFromWebhook = async (message) => {
       });
       const orderNumber = String(orderCount + 1);
 
-      await prisma.orders.create({
+      const order = await prisma.orders.create({
         data: {
           restaurant_id: restaurantId,
           customer_id: customer.id,
@@ -351,6 +351,29 @@ const saveCallFromWebhook = async (message) => {
           pickup_time: pickupTime,
         },
       });
+
+      // Automatically queue print jobs for any registered printers
+      try {
+        const printers = await prisma.printers.findMany({
+          where: { restaurant_id: restaurantId },
+        });
+
+        for (const printer of printers) {
+          await prisma.print_jobs.create({
+            data: {
+              printer_id: printer.id,
+              order_id: order.id,
+              status: "pending",
+              retry_count: 0,
+            },
+          });
+          console.log(
+            `CloudPRNT: Queued print job for printer ${printer.id} (Order ${order.id})`,
+          );
+        }
+      } catch (printError) {
+        console.error("CloudPRNT: Error queueing print job:", printError);
+      }
 
       // Update customer total_orders count
       await prisma.customers.update({
