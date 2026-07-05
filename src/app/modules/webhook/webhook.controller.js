@@ -9,8 +9,14 @@ const handleVapiWebhook = async (req, res) => {
       JSON.stringify(payload, null, 2),
     );
 
-    // Vapi events contain the payload under message field or direct payload
     const message = payload?.message || payload;
+
+    // Synchronously process tool-calls
+    if (message && message.type === "tool-calls") {
+      const results = await WebhookService.processToolCalls(message);
+      console.log("Responding to Vapi tool call with:", JSON.stringify(results, null, 2));
+      return res.status(StatusCodes.OK).json(results);
+    }
 
     if (message && (message.type === "end-of-call-report" || message.call)) {
       // Process call report asynchronously
@@ -45,8 +51,14 @@ const handleForwardedWebhook = async (req, res) => {
       "Received forwarded webhook payload:",
       JSON.stringify(payload, null, 2),
     );
-    // Support both nested message and direct payload
     const message = payload?.message || payload;
+
+    // Synchronously process tool-calls
+    if (message && message.type === "tool-calls") {
+      const results = await WebhookService.processToolCalls(message);
+      console.log("Responding to forwarded Vapi tool call with:", JSON.stringify(results, null, 2));
+      return res.status(StatusCodes.OK).json(results);
+    }
 
     if (message && (message.type === "end-of-call-report" || message.call)) {
       // Process call report asynchronously

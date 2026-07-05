@@ -392,6 +392,257 @@ const saveCallFromWebhook = async (message) => {
   }
 };
 
+const processToolCalls = async (message) => {
+  if (!message || !message.call || !message.call.id) {
+    console.warn("Invalid message payload received in tool-calls webhook");
+    return { results: [] };
+  }
+
+  const call = message.call;
+  const toolCalls = message.toolCalls || [];
+  const results = [];
+
+  // 1. Find local agent
+  let agent = null;
+  if (call.assistantId) {
+    agent = await prisma.agents.findFirst({
+      where: { vapi_assistant_id: call.assistantId },
+    });
+  }
+  if (!agent) {
+    const twilioNumber =
+      call.phoneNumber?.number ||
+      (typeof call.phoneNumber === "string" ? call.phoneNumber : null) ||
+      call.vapiPhoneNumber ||
+      call.vapiPhoneNumber?.number;
+
+    if (twilioNumber) {
+      const cleanNumber = twilioNumber.replace(/^\+/, "");
+      agent = await prisma.agents.findFirst({
+        where: {
+          twilio_number: {
+            contains: cleanNumber,
+          },
+        },
+      });
+    }
+  }
+  if (!agent) {
+    agent = await prisma.agents.findFirst();
+  }
+
+  if (!agent) {
+    console.error(`Cannot process tool call because no agents exist in database.`);
+    return { results: [] };
+  }
+
+  const restaurantId = agent.restaurant_id;
+
+  // 2. Resolve customer
+  const phone =
+    call.customer?.number ||
+    call.customer?.phone ||
+    (typeof call.customer === "string" ? call.customer : null) ||
+    call.customerNumber ||
+    "Unknown";
+  let name = call.customer?.name || "Unknown";
+
+  // Check tool call arguments for customer name
+  for (const tc of toolCalls) {
+    if (tc.function?.arguments) {
+      try {
+        const args =
+          typeof tc.function.arguments === "string"
+            ? JSON.parse(tc.function.arguments)
+            : tc.function.arguments;
+        if (args && name === "Unknown") {
+          name = args.customer_name || args.customerName || args.name || "Unknown";
+        }
+      } catch (e) {}
+    }
+  }
+
+  let customer = await prisma.customers.findFirst({
+    where: { phone, restaurant_id: restaurantId },
+  });
+
+  if (!customer) {
+    customer = await prisma.customers.create({
+      data: {
+        restaurant_id: restaurantId,
+        name,
+        phone,
+        email: "",
+        total_orders: 0,
+      },
+    });
+  } else if (customer.name === "Unknown" && name !== "Unknown") {
+    customer = await prisma.customers.update({
+      where: { id: customer.id },
+      data: { name },
+    });
+  }
+
+  // 3. Upsert call record (status is ongoing since this runs during the call)
+  const existingCall = await prisma.calls.findUnique({
+    where: { id: call.id },
+  });
+
+  if (!existingCall) {
+    await prisma.calls.create({
+      data: {
+        id: call.id,
+        restaurant_id: restaurantId,
+        customer_id: customer.id,
+        agent_id: agent.id,
+        type: call.type && call.type.toLowerCase().includes("inbound") ? "inbound" : "outbound",
+        status: "ongoing",
+        recording_url: "",
+        transcript: "",
+        duration: 0,
+        start_time: new Date(call.startedAt || new Date()),
+        end_time: new Date(),
+      },
+    });
+  }
+
+  // 4. Process each tool call
+  for (const tc of toolCalls) {
+    if (tc.function?.name === "save_order") {
+      try {
+        const args =
+          typeof tc.function.arguments === "string"
+            ? JSON.parse(tc.function.arguments)
+            : tc.function.arguments;
+
+        if (args) {
+          // Parse details
+          const items = args.order_items || args.items || [];
+          const notes = JSON.stringify(items);
+
+          let total = 0.0;
+          if (typeof args.total_price === "number") total = args.total_price;
+          else if (typeof args.total === "number") total = args.total;
+          else if (typeof args.total_price === "string") total = parseFloat(args.total_price) || 0.0;
+          else if (typeof args.total === "string") total = parseFloat(args.total) || 0.0;
+
+          let subtotal = total;
+          if (typeof args.subtotal === "number") subtotal = args.subtotal;
+          else if (typeof args.subtotal === "string") subtotal = parseFloat(args.subtotal) || 0.0;
+
+          let tax = 0.0;
+          if (typeof args.tax === "number") tax = args.tax;
+          else if (typeof args.tax === "string") tax = parseFloat(args.tax) || 0.0;
+
+          if (subtotal === total && tax > 0) {
+            subtotal = Math.max(0, total - tax);
+          }
+
+          let pickupTime = new Date();
+          if (args.pickup_time) {
+            const parsedDate = new Date(args.pickup_time);
+            if (!isNaN(parsedDate.getTime())) {
+              pickupTime = parsedDate;
+            }
+          } else {
+            pickupTime.setMinutes(pickupTime.getMinutes() + 30);
+          }
+
+          // Check if order exists
+          const existingOrder = await prisma.orders.findFirst({
+            where: { call_id: call.id },
+          });
+
+          let order;
+          if (existingOrder) {
+            order = await prisma.orders.update({
+              where: { id: existingOrder.id },
+              data: {
+                notes,
+                subtotal,
+                tax,
+                total,
+                pickup_time: pickupTime,
+              },
+            });
+            console.log(`CloudPRNT: Order ${order.id} updated during tool-calls`);
+          } else {
+            const orderCount = await prisma.orders.count({
+              where: { restaurant_id: restaurantId },
+            });
+            const orderNumber = String(orderCount + 1);
+
+            order = await prisma.orders.create({
+              data: {
+                restaurant_id: restaurantId,
+                customer_id: customer.id,
+                call_id: call.id,
+                order_number: orderNumber,
+                order_status: "pending",
+                payment_status: "pending",
+                notes,
+                subtotal,
+                tax,
+                total,
+                pickup_time: pickupTime,
+              },
+            });
+
+            // Increment customer total orders count
+            await prisma.customers.update({
+              where: { id: customer.id },
+              data: { total_orders: { increment: 1 } },
+            });
+
+            console.log(`CloudPRNT: Order ${order.id} created during tool-calls`);
+
+            // Automatically queue print jobs for any registered printers
+            try {
+              const printers = await prisma.printers.findMany({
+                where: { restaurant_id: restaurantId },
+              });
+
+              for (const printer of printers) {
+                await prisma.print_jobs.create({
+                  data: {
+                    printer_id: printer.id,
+                    order_id: order.id,
+                    status: "pending",
+                    retry_count: 0,
+                  },
+                });
+                console.log(`CloudPRNT: Queued print job for printer ${printer.id} (Order ${order.id})`);
+              }
+            } catch (printError) {
+              console.error("CloudPRNT: Error queueing print job:", printError);
+            }
+          }
+
+          results.push({
+            toolCallId: tc.id,
+            result: "Order saved successfully.",
+          });
+        }
+      } catch (err) {
+        console.error("Error saving order from tool call:", err);
+        results.push({
+          toolCallId: tc.id,
+          error: "Failed to save order.",
+        });
+      }
+    } else {
+      // Return default success result for other tools to prevent Vapi throwing error
+      results.push({
+        toolCallId: tc.id,
+        result: "Success",
+      });
+    }
+  }
+
+  return { results };
+};
+
 export const WebhookService = {
   saveCallFromWebhook,
+  processToolCalls,
 };
