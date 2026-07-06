@@ -14,7 +14,10 @@ const handleVapiWebhook = async (req, res) => {
     // Synchronously process tool-calls
     if (message && message.type === "tool-calls") {
       const results = await WebhookService.processToolCalls(message);
-      console.log("Responding to Vapi tool call with:", JSON.stringify(results, null, 2));
+      console.log(
+        "Responding to Vapi tool call with:",
+        JSON.stringify(results, null, 2),
+      );
       return res.status(StatusCodes.OK).json(results);
     }
 
@@ -56,7 +59,10 @@ const handleForwardedWebhook = async (req, res) => {
     // Synchronously process tool-calls
     if (message && message.type === "tool-calls") {
       const results = await WebhookService.processToolCalls(message);
-      console.log("Responding to forwarded Vapi tool call with:", JSON.stringify(results, null, 2));
+      console.log(
+        "Responding to forwarded Vapi tool call with:",
+        JSON.stringify(results, null, 2),
+      );
       return res.status(StatusCodes.OK).json(results);
     }
 

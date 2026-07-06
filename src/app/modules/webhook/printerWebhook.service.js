@@ -65,6 +65,24 @@ const formatReceipt = (order, restaurant) => {
     return " ".repeat(leftPad) + text;
   };
 
+  const centerTextMultiLine = (text) => {
+    if (!text) return [];
+    const words = text.split(" ");
+    const linesArr = [];
+    let currentLine = "";
+
+    for (const word of words) {
+      if ((currentLine + " " + word).trim().length <= width) {
+        currentLine = (currentLine + " " + word).trim();
+      } else {
+        if (currentLine) linesArr.push(centerText(currentLine));
+        currentLine = word;
+      }
+    }
+    if (currentLine) linesArr.push(centerText(currentLine));
+    return linesArr;
+  };
+
   const formatLine = (left, right) => {
     const spacesNeeded = width - left.length - right.length;
     if (spacesNeeded <= 0) {
@@ -76,7 +94,12 @@ const formatReceipt = (order, restaurant) => {
   const lines = [];
   lines.push(border);
   lines.push(centerText(restaurant.name.toUpperCase()));
+  if (restaurant.address) {
+    const addressLines = centerTextMultiLine(restaurant.address);
+    lines.push(...addressLines);
+  }
   if (restaurant.phone) lines.push(centerText(restaurant.phone));
+  if (restaurant.email) lines.push(centerText(restaurant.email));
   lines.push(border);
 
   const orderNumStr = order.order_number
@@ -96,6 +119,7 @@ const formatReceipt = (order, restaurant) => {
         hour12: true,
         month: "numeric",
         day: "numeric",
+        year: "2-digit",
       })
     : "N/A";
   lines.push(formatLine(`Date: ${orderDate}`, "Type: VOICE CALL"));
@@ -116,11 +140,13 @@ const formatReceipt = (order, restaurant) => {
   }
   lines.push(dashLine);
 
-  lines.push(formatLine("Subtotal:", `$${(order.subtotal || 0).toFixed(2)}`));
+  lines.push(
+    formatLine("Subtotal:", `kr. ${(order.subtotal || 0).toFixed(2)}`),
+  );
   if (order.tax > 0) {
-    lines.push(formatLine("Tax:", `$${(order.tax || 0).toFixed(2)}`));
+    lines.push(formatLine("Tax:", `kr. ${(order.tax || 0).toFixed(2)}`));
   }
-  lines.push(formatLine("TOTAL:", `$${(order.total || 0).toFixed(2)}`));
+  lines.push(formatLine("TOTAL:", `kr. ${(order.total || 0).toFixed(2)}`));
   lines.push(dashLine);
 
   const pickupTime = order.pickup_time

@@ -432,7 +432,9 @@ const processToolCalls = async (message) => {
   }
 
   if (!agent) {
-    console.error(`Cannot process tool call because no agents exist in database.`);
+    console.error(
+      `Cannot process tool call because no agents exist in database.`,
+    );
     return { results: [] };
   }
 
@@ -456,7 +458,8 @@ const processToolCalls = async (message) => {
             ? JSON.parse(tc.function.arguments)
             : tc.function.arguments;
         if (args && name === "Unknown") {
-          name = args.customer_name || args.customerName || args.name || "Unknown";
+          name =
+            args.customer_name || args.customerName || args.name || "Unknown";
         }
       } catch (e) {}
     }
@@ -495,7 +498,10 @@ const processToolCalls = async (message) => {
         restaurant_id: restaurantId,
         customer_id: customer.id,
         agent_id: agent.id,
-        type: call.type && call.type.toLowerCase().includes("inbound") ? "inbound" : "outbound",
+        type:
+          call.type && call.type.toLowerCase().includes("inbound")
+            ? "inbound"
+            : "outbound",
         status: "ongoing",
         recording_url: "",
         transcript: "",
@@ -523,16 +529,20 @@ const processToolCalls = async (message) => {
           let total = 0.0;
           if (typeof args.total_price === "number") total = args.total_price;
           else if (typeof args.total === "number") total = args.total;
-          else if (typeof args.total_price === "string") total = parseFloat(args.total_price) || 0.0;
-          else if (typeof args.total === "string") total = parseFloat(args.total) || 0.0;
+          else if (typeof args.total_price === "string")
+            total = parseFloat(args.total_price) || 0.0;
+          else if (typeof args.total === "string")
+            total = parseFloat(args.total) || 0.0;
 
           let subtotal = total;
           if (typeof args.subtotal === "number") subtotal = args.subtotal;
-          else if (typeof args.subtotal === "string") subtotal = parseFloat(args.subtotal) || 0.0;
+          else if (typeof args.subtotal === "string")
+            subtotal = parseFloat(args.subtotal) || 0.0;
 
           let tax = 0.0;
           if (typeof args.tax === "number") tax = args.tax;
-          else if (typeof args.tax === "string") tax = parseFloat(args.tax) || 0.0;
+          else if (typeof args.tax === "string")
+            tax = parseFloat(args.tax) || 0.0;
 
           if (subtotal === total && tax > 0) {
             subtotal = Math.max(0, total - tax);
@@ -565,7 +575,9 @@ const processToolCalls = async (message) => {
                 pickup_time: pickupTime,
               },
             });
-            console.log(`CloudPRNT: Order ${order.id} updated during tool-calls`);
+            console.log(
+              `CloudPRNT: Order ${order.id} updated during tool-calls`,
+            );
           } else {
             const orderCount = await prisma.orders.count({
               where: { restaurant_id: restaurantId },
@@ -594,7 +606,9 @@ const processToolCalls = async (message) => {
               data: { total_orders: { increment: 1 } },
             });
 
-            console.log(`CloudPRNT: Order ${order.id} created during tool-calls`);
+            console.log(
+              `CloudPRNT: Order ${order.id} created during tool-calls`,
+            );
 
             // Automatically queue print jobs for any registered printers
             try {
@@ -611,7 +625,9 @@ const processToolCalls = async (message) => {
                     retry_count: 0,
                   },
                 });
-                console.log(`CloudPRNT: Queued print job for printer ${printer.id} (Order ${order.id})`);
+                console.log(
+                  `CloudPRNT: Queued print job for printer ${printer.id} (Order ${order.id})`,
+                );
               }
             } catch (printError) {
               console.error("CloudPRNT: Error queueing print job:", printError);

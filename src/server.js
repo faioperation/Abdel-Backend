@@ -15,8 +15,6 @@ const startServer = async () => {
     await connectRedis();
     console.log("Redis Connected Successfully 🚚✅");
 
-  
-
     // Start server
     server = app.listen(PORT, () => {
       console.log(`Server running on port 🛺✅ ${PORT}`);

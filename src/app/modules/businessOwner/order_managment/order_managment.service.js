@@ -114,9 +114,9 @@ const getOrdersFromDB = async ({ userId }) => {
     // Parse items list from notes
     const items = parseItemsFromNotes(order.notes);
 
-    // Format total price (exactly 2 decimal places, e.g., $129.00)
+    // Format total price (exactly 2 decimal places, e.g., kr. 129.00)
     const totalVal = typeof order.total === "number" ? order.total : 0;
-    const total = `$${totalVal.toFixed(2)}`;
+    const total = `kr. ${totalVal.toFixed(2)}`;
 
     // Order source
     const source = "CALL";
