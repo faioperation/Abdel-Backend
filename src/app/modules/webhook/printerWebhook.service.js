@@ -108,21 +108,27 @@ const formatReceipt = (order, restaurant) => {
   lines.push(
     formatLine(
       `Order: ${orderNumStr}`,
-      `Status: ${order.payment_status.toUpperCase()}`,
+      "Type: VOICE CALL",
     ),
   );
 
-  const orderDate = order.created_at
-    ? new Date(order.created_at).toLocaleString("en-US", {
-        hour: "numeric",
-        minute: "numeric",
-        hour12: true,
-        month: "numeric",
-        day: "numeric",
+  const onlyDate = order.created_at
+    ? new Date(order.created_at).toLocaleDateString("en-US", {
+        month: "2-digit",
+        day: "2-digit",
         year: "2-digit",
       })
     : "N/A";
-  lines.push(formatLine(`Date: ${orderDate}`, "Type: VOICE CALL"));
+
+  const onlyTime = order.created_at
+    ? new Date(order.created_at).toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      })
+    : "N/A";
+
+  lines.push(formatLine(`Date: ${onlyDate}`, `Time: ${onlyTime}`));
   lines.push(dashLine);
 
   if (order.customer) {
@@ -149,14 +155,37 @@ const formatReceipt = (order, restaurant) => {
   lines.push(formatLine("TOTAL:", `kr. ${(order.total || 0).toFixed(2)}`));
   lines.push(dashLine);
 
-  const pickupTime = order.pickup_time
-    ? new Date(order.pickup_time).toLocaleTimeString("en-US", {
-        hour: "numeric",
-        minute: "numeric",
-        hour12: true,
-      })
-    : "Asap";
-  lines.push(`Pickup Time: ${pickupTime}`);
+  const isDelivery = order.order_type && order.order_type.toLowerCase() === "delivery";
+
+  if (isDelivery) {
+    lines.push("Order Type: DELIVERY");
+    if (order.delivery_address) {
+      lines.push("Delivery Address:");
+      const words = order.delivery_address.split(" ");
+      let currentLine = "";
+      for (const word of words) {
+        if ((currentLine + " " + word).trim().length <= width) {
+          currentLine = (currentLine + " " + word).trim();
+        } else {
+          if (currentLine) lines.push(currentLine);
+          currentLine = word;
+        }
+      }
+      if (currentLine) lines.push(currentLine);
+    } else {
+      lines.push("Delivery Address: N/A");
+    }
+  } else {
+    lines.push("Order Type: PICKUP");
+    const pickupTime = order.pickup_time
+      ? new Date(order.pickup_time).toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "numeric",
+          hour12: true,
+        })
+      : "Asap";
+    lines.push(`Pickup Time: ${pickupTime}`);
+  }
 
   // Print user notes/summary if it wasn't parsed as JSON
   const trimmedNotes = order.notes ? order.notes.trim() : "";

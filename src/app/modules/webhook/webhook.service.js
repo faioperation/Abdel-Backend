@@ -312,6 +312,23 @@ const saveCallFromWebhook = async (message) => {
       notes = analysis.summary;
     }
 
+    // Extract order type and delivery address
+    let orderType = "pickup";
+    let deliveryAddress = null;
+
+    if (structuredData.order_type || structuredData.orderType) {
+      orderType = String(structuredData.order_type || structuredData.orderType);
+    } else if (toolCallData && (toolCallData.order_type || toolCallData.orderType)) {
+      orderType = String(toolCallData.order_type || toolCallData.orderType);
+    }
+    orderType = orderType.toLowerCase().trim() === "delivery" ? "delivery" : "pickup";
+
+    if (structuredData.delivery_address || structuredData.deliveryAddress || structuredData.address) {
+      deliveryAddress = String(structuredData.delivery_address || structuredData.deliveryAddress || structuredData.address);
+    } else if (toolCallData && (toolCallData.delivery_address || toolCallData.deliveryAddress || toolCallData.address)) {
+      deliveryAddress = String(toolCallData.delivery_address || toolCallData.deliveryAddress || toolCallData.address);
+    }
+
     // Check if order already exists for this call to prevent duplicates on retries
     const existingOrder = await prisma.orders.findFirst({
       where: { call_id: call.id },
@@ -326,6 +343,8 @@ const saveCallFromWebhook = async (message) => {
           tax,
           total,
           pickup_time: pickupTime,
+          order_type: orderType,
+          delivery_address: deliveryAddress,
         },
       });
       console.log(`Order updated for call ${call.id}`);
@@ -349,6 +368,8 @@ const saveCallFromWebhook = async (message) => {
           tax,
           total,
           pickup_time: pickupTime,
+          order_type: orderType,
+          delivery_address: deliveryAddress,
         },
       });
 
@@ -558,6 +579,18 @@ const processToolCalls = async (message) => {
             pickupTime.setMinutes(pickupTime.getMinutes() + 30);
           }
 
+          // Extract order type and delivery address
+          let orderType = "pickup";
+          if (args.order_type || args.orderType) {
+            orderType = String(args.order_type || args.orderType);
+          }
+          orderType = orderType.toLowerCase().trim() === "delivery" ? "delivery" : "pickup";
+
+          let deliveryAddress = null;
+          if (args.delivery_address || args.deliveryAddress || args.address) {
+            deliveryAddress = String(args.delivery_address || args.deliveryAddress || args.address);
+          }
+
           // Check if order exists
           const existingOrder = await prisma.orders.findFirst({
             where: { call_id: call.id },
@@ -573,6 +606,8 @@ const processToolCalls = async (message) => {
                 tax,
                 total,
                 pickup_time: pickupTime,
+                order_type: orderType,
+                delivery_address: deliveryAddress,
               },
             });
             console.log(
@@ -597,6 +632,8 @@ const processToolCalls = async (message) => {
                 tax,
                 total,
                 pickup_time: pickupTime,
+                order_type: orderType,
+                delivery_address: deliveryAddress,
               },
             });
 

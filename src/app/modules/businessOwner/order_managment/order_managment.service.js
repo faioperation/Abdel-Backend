@@ -145,6 +145,8 @@ const getOrdersFromDB = async ({ userId }) => {
       date,
       orderStatus: order.order_status,
       paymentStatus: order.payment_status,
+      orderType: order.order_type || "pickup",
+      deliveryAddress: order.delivery_address,
     };
   });
 

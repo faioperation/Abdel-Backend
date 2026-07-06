@@ -294,6 +294,9 @@ model orders {
 
   notes String
 
+  order_type String? @default("pickup")
+  delivery_address String?
+
   pickup_time DateTime @default(now())
 
   subtotal Float
