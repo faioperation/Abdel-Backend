@@ -105,12 +105,7 @@ const formatReceipt = (order, restaurant) => {
   const orderNumStr = order.order_number
     ? `#${order.order_number}`
     : `#${order.id.slice(0, 8)}`;
-  lines.push(
-    formatLine(
-      `Order: ${orderNumStr}`,
-      "Type: VOICE CALL",
-    ),
-  );
+  lines.push(formatLine(`Order: ${orderNumStr}`, "Type: VOICE CALL"));
 
   const onlyDate = order.created_at
     ? new Date(order.created_at).toLocaleDateString("en-US", {
@@ -155,7 +150,8 @@ const formatReceipt = (order, restaurant) => {
   lines.push(formatLine("TOTAL:", `kr. ${(order.total || 0).toFixed(2)}`));
   lines.push(dashLine);
 
-  const isDelivery = order.order_type && order.order_type.toLowerCase() === "delivery";
+  const isDelivery =
+    order.order_type && order.order_type.toLowerCase() === "delivery";
 
   if (isDelivery) {
     lines.push("Order Type: DELIVERY");

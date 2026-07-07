@@ -106,12 +106,29 @@ const saveCallFromWebhook = async (message) => {
       structuredData.customer_name || structuredData.customerName || "Unknown";
   }
 
-  let customer = await prisma.customers.findFirst({
-    where: {
-      phone,
-      restaurant_id: restaurantId,
-    },
+  const existingCall = await prisma.calls.findUnique({
+    where: { id: call.id },
   });
+
+  let customer = null;
+  if (existingCall) {
+    customer = await prisma.customers.findUnique({
+      where: { id: existingCall.customer_id },
+    });
+  }
+
+  const isUnknownPhone = !phone || phone.toLowerCase() === "unknown" || phone.trim() === "";
+
+  if (!customer) {
+    if (!isUnknownPhone) {
+      customer = await prisma.customers.findFirst({
+        where: {
+          phone,
+          restaurant_id: restaurantId,
+        },
+      });
+    }
+  }
 
   if (!customer) {
     customer = await prisma.customers.create({
@@ -123,11 +140,13 @@ const saveCallFromWebhook = async (message) => {
         total_orders: 0,
       },
     });
-  } else if (customer.name === "Unknown" && name !== "Unknown") {
-    customer = await prisma.customers.update({
-      where: { id: customer.id },
-      data: { name },
-    });
+  } else if (name !== "Unknown" && customer.name !== name) {
+    if (!isUnknownPhone || customer.name === "Unknown" || existingCall) {
+      customer = await prisma.customers.update({
+        where: { id: customer.id },
+        data: { name },
+      });
+    }
   }
 
   // 3. Mapping fields to database schema
@@ -194,10 +213,6 @@ const saveCallFromWebhook = async (message) => {
       : new Date();
 
   // 4. Upsert/Update the call record in database with merge logic to prevent overwriting with empty data
-  const existingCall = await prisma.calls.findUnique({
-    where: { id: call.id },
-  });
-
   if (existingCall) {
     const terminalStatuses = ["completed", "failed", "transferred"];
     const finalStatus = terminalStatuses.includes(existingCall.status)
@@ -318,15 +333,36 @@ const saveCallFromWebhook = async (message) => {
 
     if (structuredData.order_type || structuredData.orderType) {
       orderType = String(structuredData.order_type || structuredData.orderType);
-    } else if (toolCallData && (toolCallData.order_type || toolCallData.orderType)) {
+    } else if (
+      toolCallData &&
+      (toolCallData.order_type || toolCallData.orderType)
+    ) {
       orderType = String(toolCallData.order_type || toolCallData.orderType);
     }
-    orderType = orderType.toLowerCase().trim() === "delivery" ? "delivery" : "pickup";
+    orderType =
+      orderType.toLowerCase().trim() === "delivery" ? "delivery" : "pickup";
 
-    if (structuredData.delivery_address || structuredData.deliveryAddress || structuredData.address) {
-      deliveryAddress = String(structuredData.delivery_address || structuredData.deliveryAddress || structuredData.address);
-    } else if (toolCallData && (toolCallData.delivery_address || toolCallData.deliveryAddress || toolCallData.address)) {
-      deliveryAddress = String(toolCallData.delivery_address || toolCallData.deliveryAddress || toolCallData.address);
+    if (
+      structuredData.delivery_address ||
+      structuredData.deliveryAddress ||
+      structuredData.address
+    ) {
+      deliveryAddress = String(
+        structuredData.delivery_address ||
+          structuredData.deliveryAddress ||
+          structuredData.address,
+      );
+    } else if (
+      toolCallData &&
+      (toolCallData.delivery_address ||
+        toolCallData.deliveryAddress ||
+        toolCallData.address)
+    ) {
+      deliveryAddress = String(
+        toolCallData.delivery_address ||
+          toolCallData.deliveryAddress ||
+          toolCallData.address,
+      );
     }
 
     // Check if order already exists for this call to prevent duplicates on retries
@@ -486,9 +522,26 @@ const processToolCalls = async (message) => {
     }
   }
 
-  let customer = await prisma.customers.findFirst({
-    where: { phone, restaurant_id: restaurantId },
+  const existingCall = await prisma.calls.findUnique({
+    where: { id: call.id },
   });
+
+  let customer = null;
+  if (existingCall) {
+    customer = await prisma.customers.findUnique({
+      where: { id: existingCall.customer_id },
+    });
+  }
+
+  const isUnknownPhone = !phone || phone.toLowerCase() === "unknown" || phone.trim() === "";
+
+  if (!customer) {
+    if (!isUnknownPhone) {
+      customer = await prisma.customers.findFirst({
+        where: { phone, restaurant_id: restaurantId },
+      });
+    }
+  }
 
   if (!customer) {
     customer = await prisma.customers.create({
@@ -500,18 +553,16 @@ const processToolCalls = async (message) => {
         total_orders: 0,
       },
     });
-  } else if (customer.name === "Unknown" && name !== "Unknown") {
-    customer = await prisma.customers.update({
-      where: { id: customer.id },
-      data: { name },
-    });
+  } else if (name !== "Unknown" && customer.name !== name) {
+    if (!isUnknownPhone || customer.name === "Unknown" || existingCall) {
+      customer = await prisma.customers.update({
+        where: { id: customer.id },
+        data: { name },
+      });
+    }
   }
 
   // 3. Upsert call record (status is ongoing since this runs during the call)
-  const existingCall = await prisma.calls.findUnique({
-    where: { id: call.id },
-  });
-
   if (!existingCall) {
     await prisma.calls.create({
       data: {
@@ -584,11 +635,16 @@ const processToolCalls = async (message) => {
           if (args.order_type || args.orderType) {
             orderType = String(args.order_type || args.orderType);
           }
-          orderType = orderType.toLowerCase().trim() === "delivery" ? "delivery" : "pickup";
+          orderType =
+            orderType.toLowerCase().trim() === "delivery"
+              ? "delivery"
+              : "pickup";
 
           let deliveryAddress = null;
           if (args.delivery_address || args.deliveryAddress || args.address) {
-            deliveryAddress = String(args.delivery_address || args.deliveryAddress || args.address);
+            deliveryAddress = String(
+              args.delivery_address || args.deliveryAddress || args.address,
+            );
           }
 
           // Check if order exists
