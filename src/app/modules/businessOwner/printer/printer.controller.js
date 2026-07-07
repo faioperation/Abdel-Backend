@@ -31,6 +31,22 @@ const getPrinters = async (req, res) => {
   }
 };
 
+const getPrinterById = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const printerId = req.params.id;
+    const result = await PrinterService.getPrinterById(userId, printerId);
+
+    return res.status(StatusCodes.OK).json({
+      success: true,
+      message: "Printer fetched successfully",
+      data: result,
+    });
+  } catch (error) {
+    return handleError(res, error, "Get Printer By ID");
+  }
+};
+
 const createPrinter = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -110,6 +126,7 @@ const queueOrderPrint = async (req, res) => {
 
 export const PrinterController = {
   getPrinters,
+  getPrinterById,
   createPrinter,
   updatePrinter,
   deletePrinter,

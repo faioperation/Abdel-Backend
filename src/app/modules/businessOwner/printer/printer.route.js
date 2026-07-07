@@ -11,6 +11,12 @@ router.get(
   PrinterController.getPrinters,
 );
 
+router.get(
+  "/:id",
+  checkAuthMiddleware(Role.RESTAURANT_OWNER),
+  PrinterController.getPrinterById,
+);
+
 router.post(
   "/",
   checkAuthMiddleware(Role.RESTAURANT_OWNER),

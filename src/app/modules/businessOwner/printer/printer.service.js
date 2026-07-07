@@ -144,6 +144,33 @@ const deletePrinter = async (userId, printerId) => {
   return { id: printerId };
 };
 
+const getPrinterById = async (userId, printerId) => {
+  const restaurantId = await getRestaurantForUser(userId);
+
+  const printer = await prisma.printers.findUnique({
+    where: { id: printerId },
+  });
+
+  if (!printer || printer.restaurant_id !== restaurantId) {
+    throw new DevBuildError("Printer not found", StatusCodes.NOT_FOUND);
+  }
+
+  const now = new Date();
+  const thresholdMs = 60 * 1000; // 60 seconds
+
+  if (
+    printer.status === "online" &&
+    now - new Date(printer.last_seen) > thresholdMs
+  ) {
+    return await prisma.printers.update({
+      where: { id: printer.id },
+      data: { status: "offline" },
+    });
+  }
+
+  return printer;
+};
+
 const queueOrderPrint = async (userId, printerId, orderId) => {
   const restaurantId = await getRestaurantForUser(userId);
 
@@ -180,6 +207,7 @@ const queueOrderPrint = async (userId, printerId, orderId) => {
 
 export const PrinterService = {
   getPrinters,
+  getPrinterById,
   createPrinter,
   updatePrinter,
   deletePrinter,
