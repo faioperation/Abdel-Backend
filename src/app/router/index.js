@@ -12,6 +12,7 @@ import { SubscriptionPlanRouter } from "../modules/businessOwner/subscription&pl
 import { WebhookRouter } from "../modules/webhook/webhook.route.js";
 import { DashboardRouter } from "../modules/systemOwner/dashboard/dashboard.route.js";
 import { PrinterRouter } from "../modules/businessOwner/printer/printer.route.js";
+import { BusinessOwnerStripeRouter } from "../modules/businessOwner/stripe/stripe.route.js";
 
 export const router = Router();
 const moduleRoutes = [
@@ -77,6 +78,11 @@ const moduleRoutes = [
   {
     path: "/business-owner/printer",
     route: PrinterRouter,
+  },
+
+  {
+    path: "/business-owner/stripe",
+    route: BusinessOwnerStripeRouter,
   },
 
   // Webhook Routes

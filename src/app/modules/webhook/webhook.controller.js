@@ -1,5 +1,6 @@
 import { StatusCodes } from "http-status-codes";
 import { WebhookService } from "./webhook.service.js";
+import DevBuildError from "../../lib/DevBuildError.js";
 
 const handleVapiWebhook = async (req, res) => {
   try {
@@ -161,10 +162,248 @@ const handlePrinterConfirmJob = async (req, res) => {
   }
 };
 
+const renderPaymentSuccessPage = (orderNumber) => `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Successful - FoodVoice AI</title>
+  <style>
+    :root {
+      --primary: #2ecc71;
+      --bg: #0f172a;
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+    body {
+      background: radial-gradient(circle at top, #1e293b, var(--bg));
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 24px;
+      padding: 40px;
+      text-align: center;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      animation: slideIn 0.6s ease-out;
+    }
+    @keyframes slideIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .success-icon {
+      width: 80px;
+      height: 80px;
+      background: rgba(46, 204, 113, 0.15);
+      border: 2px solid var(--primary);
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0 auto 24px;
+      color: var(--primary);
+      font-size: 40px;
+      font-weight: bold;
+    }
+    h1 {
+      font-size: 28px;
+      margin: 0 0 12px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    p {
+      color: var(--text-muted);
+      font-size: 16px;
+      line-height: 1.6;
+      margin: 0 0 24px;
+    }
+    .order-badge {
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.2);
+      border-radius: 12px;
+      padding: 12px 24px;
+      display: inline-block;
+      font-size: 15px;
+      font-weight: 600;
+      color: #38bdf8;
+      margin-bottom: 24px;
+    }
+    .footer {
+      font-size: 13px;
+      color: #64748b;
+      margin-top: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="success-icon">✓</div>
+    <h1>Payment Successful</h1>
+    <p>Thank you for your order! Your payment has been verified successfully. Our kitchen has started preparing your delicious food.</p>
+    ${orderNumber ? `<div class="order-badge">Order Number: #${orderNumber}</div>` : ""}
+    <div class="footer">
+      Powered by FoodVoice AI
+    </div>
+  </div>
+</body>
+</html>
+`;
+
+const renderPaymentErrorPage = (message) => `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Verification Failed - FoodVoice AI</title>
+  <style>
+    :root {
+      --primary: #e74c3c;
+      --bg: #0f172a;
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+    body {
+      background: radial-gradient(circle at top, #1e293b, var(--bg));
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 24px;
+      padding: 40px;
+      text-align: center;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+      animation: slideIn 0.6s ease-out;
+    }
+    @keyframes slideIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .error-icon {
+      width: 80px;
+      height: 80px;
+      background: rgba(231, 76, 60, 0.15);
+      border: 2px solid var(--primary);
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 0 auto 24px;
+      color: var(--primary);
+      font-size: 40px;
+      font-weight: bold;
+    }
+    h1 {
+      font-size: 28px;
+      margin: 0 0 12px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    p {
+      color: var(--text-muted);
+      font-size: 16px;
+      line-height: 1.6;
+      margin: 0 0 24px;
+    }
+    .btn {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      transition: background 0.2s;
+    }
+    .btn:hover {
+      background: #2563eb;
+    }
+    .footer {
+      font-size: 13px;
+      color: #64748b;
+      margin-top: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="error-icon">✗</div>
+    <h1>Verification Failed</h1>
+    <p>${message || "We could not verify your payment. Please try again or contact the restaurant support."}</p>
+    <a href="#" class="btn" onclick="window.location.reload();">Retry Verification</a>
+    <div class="footer">
+      Powered by FoodVoice AI
+    </div>
+  </div>
+</body>
+</html>
+`;
+
+const verifyCustomerPayment = async (req, res) => {
+  try {
+    const { order_id, session_id } = req.query;
+
+    if (!order_id || !session_id) {
+      throw new DevBuildError(
+        "order_id and session_id are required",
+        StatusCodes.BAD_REQUEST,
+      );
+    }
+
+    if (session_id === "failed") {
+      return res.status(StatusCodes.OK).send(renderPaymentErrorPage("Payment was cancelled or failed. Please try again."));
+    }
+
+    const result = await WebhookService.verifyCustomerPaymentInDB(order_id, session_id);
+
+    return res.status(StatusCodes.OK).send(renderPaymentSuccessPage(result.orderNumber || ""));
+  } catch (error) {
+    console.error("Verify Customer Payment Error:", error);
+    const errorMessage = error instanceof DevBuildError ? error.message : "An internal error occurred during payment verification";
+    return res.status(StatusCodes.OK).send(renderPaymentErrorPage(errorMessage));
+  }
+};
+
 export const WebhookController = {
   handleVapiWebhook,
   handleForwardedWebhook,
   handlePrinterPoll,
   handlePrinterGetJob,
   handlePrinterConfirmJob,
+  verifyCustomerPayment,
 };

@@ -123,6 +123,8 @@ model restaurants {
   pos_integrations pos_integrations[]
   usage_logs       usage_logs[]
   settings         restaurant_settings?
+  stripe_secret_key String?
+  stripe_publishable_key String?
 }
 
 // ─── USER RESTAURANT ───────────────────

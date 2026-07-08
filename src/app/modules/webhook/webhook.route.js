@@ -14,4 +14,7 @@ router.post("/printer/poll", WebhookController.handlePrinterPoll);
 router.get("/printer/poll", WebhookController.handlePrinterGetJob);
 router.delete("/printer/poll", WebhookController.handlePrinterConfirmJob);
 
+// Public payment verification endpoint
+router.get("/payment/verify", WebhookController.verifyCustomerPayment);
+
 export const WebhookRouter = router;
