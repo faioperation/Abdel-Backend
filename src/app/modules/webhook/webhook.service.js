@@ -117,7 +117,8 @@ const saveCallFromWebhook = async (message) => {
     });
   }
 
-  const isUnknownPhone = !phone || phone.toLowerCase() === "unknown" || phone.trim() === "";
+  const isUnknownPhone =
+    !phone || phone.toLowerCase() === "unknown" || phone.trim() === "";
 
   if (!customer) {
     if (!isUnknownPhone) {
@@ -533,7 +534,8 @@ const processToolCalls = async (message) => {
     });
   }
 
-  const isUnknownPhone = !phone || phone.toLowerCase() === "unknown" || phone.trim() === "";
+  const isUnknownPhone =
+    !phone || phone.toLowerCase() === "unknown" || phone.trim() === "";
 
   if (!customer) {
     if (!isUnknownPhone) {
