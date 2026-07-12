@@ -19,23 +19,20 @@ if (accountSid && authToken) {
   );
 }
 
-/**
- * Sends an SMS to a customer.
- * Fallbacks to console logging if Twilio is not configured.
- * @param {string} to - Customer phone number (e.g. +1234567890)
- * @param {string} body - Message body containing the Stripe checkout link
- * @returns {Promise<object>} - Twilio message response or mock response
- */
-export const sendSms = async (to, body) => {
+export const sendSms = async (to, body, from = null) => {
   if (!to) {
     console.warn("⚠️ Cannot send SMS: Customer phone number is missing.");
     return { success: false, error: "Missing phone number" };
   }
 
+  const senderNumber = from || twilioNumber;
+
   // Handle Mock Mode
-  if (!client || !twilioNumber) {
+  if (!client || !senderNumber) {
     console.log("\n==================================================");
-    console.log(`💬 [SMS MOCK MODE] to ${to}:`);
+    console.log(
+      `💬 [SMS MOCK MODE] to ${to} (from ${senderNumber || "No Sender"}):`,
+    );
     console.log(body);
     console.log("==================================================\n");
     return {
@@ -48,13 +45,18 @@ export const sendSms = async (to, body) => {
   try {
     const message = await client.messages.create({
       body: body,
-      from: twilioNumber,
+      from: senderNumber,
       to: to,
     });
-    console.log(`💬 SMS sent successfully to ${to} | SID: ${message.sid}`);
+    console.log(
+      `💬 SMS sent successfully to ${to} from ${senderNumber} | SID: ${message.sid}`,
+    );
     return { success: true, sid: message.sid };
   } catch (error) {
-    console.error(`❌ Failed to send SMS to ${to}:`, error.message || error);
+    console.error(
+      `❌ Failed to send SMS to ${to} from ${senderNumber}:`,
+      error.message || error,
+    );
     // Return error status instead of throwing so that webhook/tool calls don't crash
     return { success: false, error: error.message };
   }

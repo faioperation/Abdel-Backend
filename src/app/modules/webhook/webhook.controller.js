@@ -386,16 +386,32 @@ const verifyCustomerPayment = async (req, res) => {
     }
 
     if (session_id === "failed") {
-      return res.status(StatusCodes.OK).send(renderPaymentErrorPage("Payment was cancelled or failed. Please try again."));
+      return res
+        .status(StatusCodes.OK)
+        .send(
+          renderPaymentErrorPage(
+            "Payment was cancelled or failed. Please try again.",
+          ),
+        );
     }
 
-    const result = await WebhookService.verifyCustomerPaymentInDB(order_id, session_id);
+    const result = await WebhookService.verifyCustomerPaymentInDB(
+      order_id,
+      session_id,
+    );
 
-    return res.status(StatusCodes.OK).send(renderPaymentSuccessPage(result.orderNumber || ""));
+    return res
+      .status(StatusCodes.OK)
+      .send(renderPaymentSuccessPage(result.orderNumber || ""));
   } catch (error) {
     console.error("Verify Customer Payment Error:", error);
-    const errorMessage = error instanceof DevBuildError ? error.message : "An internal error occurred during payment verification";
-    return res.status(StatusCodes.OK).send(renderPaymentErrorPage(errorMessage));
+    const errorMessage =
+      error instanceof DevBuildError
+        ? error.message
+        : "An internal error occurred during payment verification";
+    return res
+      .status(StatusCodes.OK)
+      .send(renderPaymentErrorPage(errorMessage));
   }
 };
 

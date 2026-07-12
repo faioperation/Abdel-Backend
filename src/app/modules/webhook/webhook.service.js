@@ -764,7 +764,9 @@ const queuePrintJobs = async (restaurantId, orderId) => {
             retry_count: 0,
           },
         });
-        console.log(`CloudPRNT: Queued print job for printer ${printer.id} (Order ${orderId})`);
+        console.log(
+          `CloudPRNT: Queued print job for printer ${printer.id} (Order ${orderId})`,
+        );
       }
     }
   } catch (printError) {
@@ -787,6 +789,15 @@ const generateAndSendPaymentLink = async (orderId) => {
       where: { id: orderId },
       include: {
         customer: true,
+        call: {
+          include: {
+            agent: {
+              select: {
+                twilio_number: true,
+              },
+            },
+          },
+        },
         restaurant: {
           select: {
             id: true,
@@ -811,7 +822,9 @@ const generateAndSendPaymentLink = async (orderId) => {
     const customerPhone = customer?.phone;
 
     if (!customerPhone || customerPhone.toLowerCase() === "unknown") {
-      console.warn(`Customer phone is unknown for order ${orderId}. Cannot send payment link.`);
+      console.warn(
+        `Customer phone is unknown for order ${orderId}. Cannot send payment link.`,
+      );
       return;
     }
 
@@ -863,12 +876,19 @@ const generateAndSendPaymentLink = async (orderId) => {
           },
         });
 
-        console.log(`Stripe Checkout Session created for order ${orderId}: ${paymentLink}`);
+        console.log(
+          `Stripe Checkout Session created for order ${orderId}: ${paymentLink}`,
+        );
       } catch (stripeError) {
-        console.error(`Failed to create Stripe Checkout Session for restaurant ${restaurant.id}:`, stripeError.message);
+        console.error(
+          `Failed to create Stripe Checkout Session for restaurant ${restaurant.id}:`,
+          stripeError.message,
+        );
       }
     } else {
-      console.warn(`Restaurant ${restaurant.id} does not have Stripe keys configured. Payment link generation skipped.`);
+      console.warn(
+        `Restaurant ${restaurant.id} does not have Stripe keys configured. Payment link generation skipped.`,
+      );
     }
 
     // Send SMS with link or cash message
@@ -879,7 +899,18 @@ const generateAndSendPaymentLink = async (orderId) => {
       messageBody = `Thank you for ordering from ${restaurant.name}! Your order total is $${order.total.toFixed(2)}. (Pay in cash upon pickup/delivery)`;
     }
 
-    const smsResult = await sendSms(customerPhone, messageBody);
+    // Use agent's specific Twilio number if available, otherwise default to config
+    const agentTwilioNumber = order.call?.agent?.twilio_number;
+    const senderNumber =
+      agentTwilioNumber &&
+      agentTwilioNumber !== "TBD" &&
+      agentTwilioNumber !== ""
+        ? agentTwilioNumber.startsWith("+")
+          ? agentTwilioNumber
+          : `+${agentTwilioNumber}`
+        : null;
+
+    const smsResult = await sendSms(customerPhone, messageBody, senderNumber);
 
     // Log SMS in DB
     await prisma.sms_logs.create({
@@ -892,9 +923,11 @@ const generateAndSendPaymentLink = async (orderId) => {
         status: smsResult.success ? "sent" : "failed",
       },
     });
-
   } catch (err) {
-    console.error(`Error in generateAndSendPaymentLink for order ${orderId}:`, err);
+    console.error(
+      `Error in generateAndSendPaymentLink for order ${orderId}:`,
+      err,
+    );
   }
 };
 
@@ -916,14 +949,20 @@ const verifyCustomerPaymentInDB = async (orderId, sessionId) => {
   }
 
   if (!order.restaurant.stripe_secret_key) {
-    throw new DevBuildError("Restaurant Stripe keys not configured", StatusCodes.BAD_REQUEST);
+    throw new DevBuildError(
+      "Restaurant Stripe keys not configured",
+      StatusCodes.BAD_REQUEST,
+    );
   }
 
   const stripeInstance = new Stripe(order.restaurant.stripe_secret_key);
   const session = await stripeInstance.checkout.sessions.retrieve(sessionId);
 
   if (session.payment_status !== "paid") {
-    throw new DevBuildError("Payment has not been completed yet", StatusCodes.BAD_REQUEST);
+    throw new DevBuildError(
+      "Payment has not been completed yet",
+      StatusCodes.BAD_REQUEST,
+    );
   }
 
   await prisma.$transaction(async (tx) => {
