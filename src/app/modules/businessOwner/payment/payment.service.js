@@ -63,9 +63,9 @@ const createStripeCheckoutSession = async (user, planId, billingCycle) => {
   }
 
   // Frontend Success/Cancel URLs
-  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-  const successUrl = `${frontendUrl}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`;
-  const cancelUrl = `${frontendUrl}/dashboard/subscription`;
+  const frontendUrl = process.env.FRONT_END_URL || process.env.FRONTEND_URL || "http://localhost:3000";
+  const successUrl = `${frontendUrl}/owner/subscription?session_id={CHECKOUT_SESSION_ID}`;
+  const cancelUrl = `${frontendUrl}/owner/subscription`;
 
   // Create checkout session
   const session = await stripe.checkout.sessions.create({
