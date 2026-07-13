@@ -205,6 +205,35 @@ const queueOrderPrint = async (userId, printerId, orderId) => {
   return job;
 };
 
+const queuePrintJobsForOrder = async (restaurantId, orderId) => {
+  try {
+    const printers = await prisma.printers.findMany({
+      where: { restaurant_id: restaurantId },
+    });
+
+    for (const printer of printers) {
+      const existingJob = await prisma.print_jobs.findFirst({
+        where: { printer_id: printer.id, order_id: orderId },
+      });
+      if (!existingJob) {
+        await prisma.print_jobs.create({
+          data: {
+            printer_id: printer.id,
+            order_id: orderId,
+            status: "pending",
+            retry_count: 0,
+          },
+        });
+        console.log(
+          `CloudPRNT: Queued print job for printer ${printer.id} (Order ${orderId})`,
+        );
+      }
+    }
+  } catch (printError) {
+    console.error("CloudPRNT: Error queueing print job:", printError);
+  }
+};
+
 export const PrinterService = {
   getPrinters,
   getPrinterById,
@@ -212,4 +241,5 @@ export const PrinterService = {
   updatePrinter,
   deletePrinter,
   queueOrderPrint,
+  queuePrintJobsForOrder,
 };

@@ -1,8 +1,7 @@
 import prisma from "../../prisma/client.js";
-import Stripe from "stripe";
-import { sendSms } from "../../utils/sendSms.js";
-import DevBuildError from "../../lib/DevBuildError.js";
-import { StatusCodes } from "http-status-codes";
+import { SubscriptionPlanService } from "../businessOwner/subscription&plan/subscriptionPlan.service.js";
+import { PrinterService } from "../businessOwner/printer/printer.service.js";
+import { PaymentService } from "../businessOwner/payment/payment.service.js";
 
 const saveCallFromWebhook = async (message) => {
   if (!message || !message.call || !message.call.id) {
@@ -218,8 +217,17 @@ const saveCallFromWebhook = async (message) => {
       : new Date();
 
   // 4. Upsert/Update the call record in database with merge logic to prevent overwriting with empty data
+  const isNewCall = !existingCall;
+  const wasOngoing = existingCall && existingCall.status === "ongoing";
+  const terminalStatuses = ["completed", "failed", "transferred"];
+  const isTerminal = terminalStatuses.includes(status);
+  const incrementCallCount = isNewCall || (wasOngoing && isTerminal);
+  const durationDiff = Math.max(
+    0,
+    duration - (existingCall ? existingCall.duration : 0),
+  );
+
   if (existingCall) {
-    const terminalStatuses = ["completed", "failed", "transferred"];
     const finalStatus = terminalStatuses.includes(existingCall.status)
       ? existingCall.status
       : status;
@@ -251,6 +259,14 @@ const saveCallFromWebhook = async (message) => {
       },
     });
   }
+
+  // Update subscription usage metrics
+  await SubscriptionPlanService.incrementSubscriptionUsage(
+    restaurantId,
+    durationDiff,
+    incrementCallCount,
+    false,
+  );
 
   console.log(`Call ${call.id} successfully processed and saved to database.`);
 
@@ -423,7 +439,7 @@ const saveCallFromWebhook = async (message) => {
 
       if (!hasStripe) {
         // Automatically queue print jobs for any registered printers immediately (cash order)
-        await queuePrintJobs(restaurantId, order.id);
+        await PrinterService.queuePrintJobsForOrder(restaurantId, order.id);
       }
 
       // Update customer total_orders count
@@ -440,8 +456,11 @@ const saveCallFromWebhook = async (message) => {
         `Order created for call ${call.id} with order number: ${orderNumber}`,
       );
 
+      // Increment subscription usage orders count
+      await SubscriptionPlanService.incrementSubscriptionUsage(restaurantId, 0, false, true);
+
       // Generate payment link and send via SMS (async)
-      generateAndSendPaymentLink(order.id).catch((err) => {
+      PaymentService.generateAndSendPaymentLink(order.id).catch((err) => {
         console.error("Error in generateAndSendPaymentLink:", err);
       });
     }
@@ -703,6 +722,9 @@ const processToolCalls = async (message) => {
               `CloudPRNT: Order ${order.id} created during tool-calls`,
             );
 
+            // Increment subscription usage orders count
+            await SubscriptionPlanService.incrementSubscriptionUsage(restaurantId, 0, false, true);
+
             // Check if Stripe is configured for this restaurant
             const restaurantInfo = await prisma.restaurants.findUnique({
               where: { id: restaurantId },
@@ -712,12 +734,12 @@ const processToolCalls = async (message) => {
 
             if (!hasStripe) {
               // Automatically queue print jobs for any registered printers immediately (cash order)
-              await queuePrintJobs(restaurantId, order.id);
+              await PrinterService.queuePrintJobsForOrder(restaurantId, order.id);
             }
           }
 
           // Generate/update Stripe payment link and send SMS (async)
-          generateAndSendPaymentLink(order.id).catch((err) => {
+          PaymentService.generateAndSendPaymentLink(order.id).catch((err) => {
             console.error("Error in generateAndSendPaymentLink:", err);
           });
 
@@ -745,277 +767,7 @@ const processToolCalls = async (message) => {
   return { results };
 };
 
-const queuePrintJobs = async (restaurantId, orderId) => {
-  try {
-    const printers = await prisma.printers.findMany({
-      where: { restaurant_id: restaurantId },
-    });
-
-    for (const printer of printers) {
-      const existingJob = await prisma.print_jobs.findFirst({
-        where: { printer_id: printer.id, order_id: orderId },
-      });
-      if (!existingJob) {
-        await prisma.print_jobs.create({
-          data: {
-            printer_id: printer.id,
-            order_id: orderId,
-            status: "pending",
-            retry_count: 0,
-          },
-        });
-        console.log(
-          `CloudPRNT: Queued print job for printer ${printer.id} (Order ${orderId})`,
-        );
-      }
-    }
-  } catch (printError) {
-    console.error("CloudPRNT: Error queueing print job:", printError);
-  }
-};
-
-const generateAndSendPaymentLink = async (orderId) => {
-  try {
-    const existingPayment = await prisma.payments.findFirst({
-      where: { order_id: orderId },
-    });
-
-    if (existingPayment) {
-      console.log(`Payment link already generated for order ${orderId}`);
-      return;
-    }
-
-    const order = await prisma.orders.findUnique({
-      where: { id: orderId },
-      include: {
-        customer: true,
-        call: {
-          include: {
-            agent: {
-              select: {
-                twilio_number: true,
-              },
-            },
-          },
-        },
-        restaurant: {
-          select: {
-            id: true,
-            name: true,
-            stripe_secret_key: true,
-            settings: {
-              select: {
-                currency: true,
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!order) {
-      console.error(`Order ${orderId} not found for payment link generation`);
-      return;
-    }
-
-    const { restaurant, customer } = order;
-    const customerPhone = customer?.phone;
-
-    if (!customerPhone || customerPhone.toLowerCase() === "unknown") {
-      console.warn(
-        `Customer phone is unknown for order ${orderId}. Cannot send payment link.`,
-      );
-      return;
-    }
-
-    let paymentLink = "";
-    let stripeSessionId = "";
-
-    if (restaurant.stripe_secret_key) {
-      try {
-        const stripeInstance = new Stripe(restaurant.stripe_secret_key);
-        const backendUrl = process.env.BACKEND_URL || "http://localhost:8000";
-        const successUrl = `${backendUrl}/api/webhook/payment/verify?session_id={CHECKOUT_SESSION_ID}&order_id=${order.id}`;
-        const cancelUrl = `${backendUrl}/api/webhook/payment/verify?session_id=failed&order_id=${order.id}`;
-        const currency = restaurant.settings?.currency || "usd";
-
-        const session = await stripeInstance.checkout.sessions.create({
-          payment_method_types: ["card"],
-          mode: "payment",
-          line_items: [
-            {
-              price_data: {
-                currency: currency.toLowerCase(),
-                product_data: {
-                  name: `Order #${order.order_number} - ${restaurant.name}`,
-                },
-                unit_amount: Math.round(order.total * 100),
-              },
-              quantity: 1,
-            },
-          ],
-          metadata: {
-            orderId: order.id,
-            restaurantId: restaurant.id,
-          },
-          success_url: successUrl,
-          cancel_url: cancelUrl,
-        });
-
-        paymentLink = session.url;
-        stripeSessionId = session.id;
-
-        // Save payment session details in DB
-        await prisma.payments.create({
-          data: {
-            order_id: order.id,
-            stripe_payment_intent: stripeSessionId,
-            payment_link: paymentLink,
-            amount: order.total,
-            status: "pending",
-          },
-        });
-
-        console.log(
-          `Stripe Checkout Session created for order ${orderId}: ${paymentLink}`,
-        );
-      } catch (stripeError) {
-        console.error(
-          `Failed to create Stripe Checkout Session for restaurant ${restaurant.id}:`,
-          stripeError.message,
-        );
-      }
-    } else {
-      console.warn(
-        `Restaurant ${restaurant.id} does not have Stripe keys configured. Payment link generation skipped.`,
-      );
-    }
-
-    // Send SMS with link or cash message
-    let messageBody = "";
-    if (paymentLink) {
-      messageBody = `Thank you for ordering from ${restaurant.name}! Your order total is $${order.total.toFixed(2)}. Please pay here to confirm your order: ${paymentLink}`;
-    } else {
-      messageBody = `Thank you for ordering from ${restaurant.name}! Your order total is $${order.total.toFixed(2)}. (Pay in cash upon pickup/delivery)`;
-    }
-
-    // Use agent's specific Twilio number if available, otherwise default to config
-    const agentTwilioNumber = order.call?.agent?.twilio_number;
-    const senderNumber =
-      agentTwilioNumber &&
-      agentTwilioNumber !== "TBD" &&
-      agentTwilioNumber !== ""
-        ? agentTwilioNumber.startsWith("+")
-          ? agentTwilioNumber
-          : `+${agentTwilioNumber}`
-        : null;
-
-    const smsResult = await sendSms(customerPhone, messageBody, senderNumber);
-
-    // Log SMS in DB
-    await prisma.sms_logs.create({
-      data: {
-        restaurant_id: restaurant.id,
-        customer_id: customer.id,
-        order_id: order.id,
-        phone: customerPhone,
-        message: messageBody,
-        status: smsResult.success ? "sent" : "failed",
-      },
-    });
-  } catch (err) {
-    console.error(
-      `Error in generateAndSendPaymentLink for order ${orderId}:`,
-      err,
-    );
-  }
-};
-
-const verifyCustomerPaymentInDB = async (orderId, sessionId) => {
-  const order = await prisma.orders.findUnique({
-    where: { id: orderId },
-    include: {
-      restaurant: {
-        select: {
-          id: true,
-          stripe_secret_key: true,
-        },
-      },
-    },
-  });
-
-  if (!order) {
-    throw new DevBuildError("Order not found", StatusCodes.NOT_FOUND);
-  }
-
-  if (!order.restaurant.stripe_secret_key) {
-    throw new DevBuildError(
-      "Restaurant Stripe keys not configured",
-      StatusCodes.BAD_REQUEST,
-    );
-  }
-
-  const stripeInstance = new Stripe(order.restaurant.stripe_secret_key);
-  const session = await stripeInstance.checkout.sessions.retrieve(sessionId);
-
-  if (session.payment_status !== "paid") {
-    throw new DevBuildError(
-      "Payment has not been completed yet",
-      StatusCodes.BAD_REQUEST,
-    );
-  }
-
-  await prisma.$transaction(async (tx) => {
-    // Update order
-    await tx.orders.update({
-      where: { id: orderId },
-      data: {
-        order_status: "preparing",
-        payment_status: "paid",
-      },
-    });
-
-    // Update or create payment record
-    const payment = await tx.payments.findFirst({
-      where: { order_id: orderId },
-    });
-
-    if (payment) {
-      await tx.payments.update({
-        where: { id: payment.id },
-        data: {
-          stripe_payment_intent: session.payment_intent || session.id,
-          status: "paid",
-          paid_at: new Date(),
-        },
-      });
-    } else {
-      await tx.payments.create({
-        data: {
-          order_id: orderId,
-          stripe_payment_intent: session.payment_intent || session.id,
-          payment_link: session.url || "",
-          amount: order.total,
-          status: "paid",
-          paid_at: new Date(),
-        },
-      });
-    }
-  });
-
-  // Queue printing since order is now paid
-  await queuePrintJobs(order.restaurant.id, orderId);
-
-  return {
-    orderId,
-    status: "paid",
-    orderStatus: "preparing",
-    orderNumber: order.order_number,
-  };
-};
-
 export const WebhookService = {
   saveCallFromWebhook,
   processToolCalls,
-  verifyCustomerPaymentInDB,
 };

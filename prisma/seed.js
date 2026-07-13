@@ -107,6 +107,8 @@ async function main() {
       stripe_yearly_price_id: "",
       call_limit: 0,
       order_limit: 0,
+      included_minutes: 250,
+      overage_rate: 2.20,
       features: [],
     },
     {
@@ -117,6 +119,8 @@ async function main() {
       stripe_yearly_price_id: "",
       call_limit: 0,
       order_limit: 0,
+      included_minutes: 500,
+      overage_rate: 2.00,
       features: [],
     },
   ];

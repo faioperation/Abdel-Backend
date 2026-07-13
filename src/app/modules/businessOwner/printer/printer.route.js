@@ -2,42 +2,40 @@ import { Router } from "express";
 import { PrinterController } from "./printer.controller.js";
 import { checkAuthMiddleware } from "../../../middleware/checkAuthMiddleware.js";
 import { Role } from "../../../utils/role.js";
+import { checkSubscriptionActive } from "../../../middleware/checkSubscriptionActive.js";
 
 const router = Router();
 
+router.use(checkAuthMiddleware(Role.RESTAURANT_OWNER));
+router.use(checkSubscriptionActive);
+
 router.get(
   "/",
-  checkAuthMiddleware(Role.RESTAURANT_OWNER),
   PrinterController.getPrinters,
 );
 
 router.get(
   "/:id",
-  checkAuthMiddleware(Role.RESTAURANT_OWNER),
   PrinterController.getPrinterById,
 );
 
 router.post(
   "/",
-  checkAuthMiddleware(Role.RESTAURANT_OWNER),
   PrinterController.createPrinter,
 );
 
 router.patch(
   "/:id",
-  checkAuthMiddleware(Role.RESTAURANT_OWNER),
   PrinterController.updatePrinter,
 );
 
 router.delete(
   "/:id",
-  checkAuthMiddleware(Role.RESTAURANT_OWNER),
   PrinterController.deletePrinter,
 );
 
 router.post(
   "/:id/print-order",
-  checkAuthMiddleware(Role.RESTAURANT_OWNER),
   PrinterController.queueOrderPrint,
 );
 

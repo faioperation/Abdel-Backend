@@ -158,6 +158,9 @@ model plans {
   call_limit Int
   order_limit Int
 
+  included_minutes Int   @default(0)
+  overage_rate     Float @default(0.0)
+
   features String[]
 
   subscriptions subscriptions[]
@@ -178,6 +181,9 @@ model subscriptions {
   start_date DateTime @default(now())
   end_date DateTime @updatedAt
 
+  stripe_subscription_id String? @unique
+  stripe_customer_id     String?
+
   usages subscription_usage[]
 }
 
@@ -189,6 +195,7 @@ model subscription_usage {
 
   total_calls Int
   total_orders Int
+  total_duration Int @default(0)
 
   current_month DateTime @default(now())
 } 

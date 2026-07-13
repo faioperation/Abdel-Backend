@@ -1,3 +1,7 @@
+import DevBuildError from "../../../lib/DevBuildError.js";
+import { StatusCodes } from "http-status-codes";
+import prisma from "../../../prisma/client.js";
+
 const getAllPlans = async (prisma, user) => {
   const plans = await prisma.plans.findMany({
     orderBy: {
@@ -32,6 +36,8 @@ const getAllPlans = async (prisma, user) => {
     ...plan,
     isPurchased: activeSub ? activeSub.plan_id === plan.id : false,
     isCurrentPlan: activeSub ? activeSub.plan_id === plan.id : false,
+    includedMinutes: plan.included_minutes,
+    overageRate: plan.overage_rate,
   }));
 };
 
@@ -110,7 +116,152 @@ const getBillingHistory = async (prisma, user, query) => {
   };
 };
 
+const getMySubscription = async (prisma, user) => {
+  // Find restaurant owned by this user
+  const restaurant = await prisma.restaurants.findFirst({
+    where: { owner_id: user.id },
+  });
+
+  if (!restaurant) {
+    throw new DevBuildError(
+      "Restaurant not found for this user",
+      StatusCodes.NOT_FOUND
+    );
+  }
+
+  // Find active subscription
+  const activeSub = await prisma.subscriptions.findFirst({
+    where: {
+      restaurant_id: restaurant.id,
+      status: "active",
+    },
+    include: {
+      plan: true,
+    },
+  });
+
+  if (!activeSub) {
+    return {
+      hasActiveSubscription: false,
+      restaurantStatus: restaurant.status,
+      subscription: null,
+    };
+  }
+
+  // Find the latest usage log for this billing cycle
+  const usage = await prisma.subscription_usage.findFirst({
+    where: {
+      subscription_id: activeSub.id,
+      current_month: {
+        gte: activeSub.start_date,
+        lte: activeSub.end_date,
+      },
+    },
+    orderBy: {
+      current_month: "desc",
+    },
+  });
+
+  const totalCalls = usage ? usage.total_calls : 0;
+  const totalOrders = usage ? usage.total_orders : 0;
+  const totalDurationSeconds = usage ? usage.total_duration : 0;
+
+  // Usage minutes rounded up
+  const usedMinutes = Math.ceil(totalDurationSeconds / 60);
+  const includedMinutes = activeSub.plan.included_minutes || 0;
+  const overageRate = activeSub.plan.overage_rate || 0.0;
+
+  const overageMinutes = Math.max(0, usedMinutes - includedMinutes);
+  const remainingMinutes = Math.max(0, includedMinutes - usedMinutes);
+  const accruedOverageCost = overageMinutes * overageRate;
+
+  return {
+    hasActiveSubscription: true,
+    restaurantStatus: restaurant.status,
+    subscription: {
+      id: activeSub.id,
+      planName: activeSub.plan.name,
+      monthlyPrice: activeSub.plan.monthly_price,
+      currency: "DKK",
+      startDate: activeSub.start_date,
+      endDate: activeSub.end_date,
+      stripeSubscriptionId: activeSub.stripe_subscription_id,
+      usage: {
+        totalCalls,
+        totalOrders,
+        totalDurationSeconds,
+        usedMinutes,
+        includedMinutes,
+        remainingMinutes,
+        overageMinutes,
+        overageRate,
+        accruedOverageCost,
+      },
+    },
+  };
+};
+
+const incrementSubscriptionUsage = async (
+  restaurantId,
+  durationSeconds = 0,
+  incrementCalls = false,
+  incrementOrders = false,
+) => {
+  try {
+    const activeSubscription = await prisma.subscriptions.findFirst({
+      where: {
+        restaurant_id: restaurantId,
+        status: "active",
+      },
+    });
+
+    if (activeSubscription) {
+      let usage = await prisma.subscription_usage.findFirst({
+        where: {
+          subscription_id: activeSubscription.id,
+          current_month: {
+            gte: activeSubscription.start_date,
+            lte: activeSubscription.end_date,
+          },
+        },
+        orderBy: {
+          current_month: "desc",
+        },
+      });
+
+      if (!usage) {
+        usage = await prisma.subscription_usage.create({
+          data: {
+            subscription_id: activeSubscription.id,
+            total_calls: 0,
+            total_orders: 0,
+            total_duration: 0,
+            current_month: activeSubscription.start_date,
+          },
+        });
+      }
+
+      await prisma.subscription_usage.update({
+        where: { id: usage.id },
+        data: {
+          total_calls: incrementCalls ? { increment: 1 } : undefined,
+          total_orders: incrementOrders ? { increment: 1 } : undefined,
+          total_duration:
+            durationSeconds > 0 ? { increment: durationSeconds } : undefined,
+        },
+      });
+      console.log(
+        `Updated subscription usage for Restaurant ${restaurantId}: calls=${incrementCalls}, orders=${incrementOrders}, durationSeconds=${durationSeconds}`,
+      );
+    }
+  } catch (error) {
+    console.error("Error updating subscription usage:", error);
+  }
+};
+
 export const SubscriptionPlanService = {
   getAllPlans,
   getBillingHistory,
+  getMySubscription,
+  incrementSubscriptionUsage,
 };

@@ -1,6 +1,7 @@
 import { StatusCodes } from "http-status-codes";
 import { WebhookService } from "./webhook.service.js";
 import DevBuildError from "../../lib/DevBuildError.js";
+import { PaymentService } from "../businessOwner/payment/payment.service.js";
 
 const handleVapiWebhook = async (req, res) => {
   try {
@@ -395,7 +396,7 @@ const verifyCustomerPayment = async (req, res) => {
         );
     }
 
-    const result = await WebhookService.verifyCustomerPaymentInDB(
+    const result = await PaymentService.verifyCustomerPayment(
       order_id,
       session_id,
     );
