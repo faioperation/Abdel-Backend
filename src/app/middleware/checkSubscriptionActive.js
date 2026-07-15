@@ -45,7 +45,8 @@ export const checkSubscriptionActive = async (req, res, next) => {
     if (restaurant.status !== "active") {
       return res.status(402).json({
         success: false,
-        message: "Your restaurant service is suspended or expired. Please renew your subscription.",
+        message:
+          "Your restaurant service is suspended or expired. Please renew your subscription.",
       });
     }
 

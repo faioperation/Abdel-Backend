@@ -108,7 +108,7 @@ async function main() {
       call_limit: 0,
       order_limit: 0,
       included_minutes: 250,
-      overage_rate: 2.20,
+      overage_rate: 2.2,
       features: [],
     },
     {
@@ -120,7 +120,7 @@ async function main() {
       call_limit: 0,
       order_limit: 0,
       included_minutes: 500,
-      overage_rate: 2.00,
+      overage_rate: 2.0,
       features: [],
     },
   ];

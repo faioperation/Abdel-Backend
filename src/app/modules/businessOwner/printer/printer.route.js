@@ -9,34 +9,16 @@ const router = Router();
 router.use(checkAuthMiddleware(Role.RESTAURANT_OWNER));
 router.use(checkSubscriptionActive);
 
-router.get(
-  "/",
-  PrinterController.getPrinters,
-);
+router.get("/", PrinterController.getPrinters);
 
-router.get(
-  "/:id",
-  PrinterController.getPrinterById,
-);
+router.get("/:id", PrinterController.getPrinterById);
 
-router.post(
-  "/",
-  PrinterController.createPrinter,
-);
+router.post("/", PrinterController.createPrinter);
 
-router.patch(
-  "/:id",
-  PrinterController.updatePrinter,
-);
+router.patch("/:id", PrinterController.updatePrinter);
 
-router.delete(
-  "/:id",
-  PrinterController.deletePrinter,
-);
+router.delete("/:id", PrinterController.deletePrinter);
 
-router.post(
-  "/:id/print-order",
-  PrinterController.queueOrderPrint,
-);
+router.post("/:id/print-order", PrinterController.queueOrderPrint);
 
 export const PrinterRouter = router;

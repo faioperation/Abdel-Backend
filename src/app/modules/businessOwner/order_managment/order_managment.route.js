@@ -9,14 +9,8 @@ const router = Router();
 router.use(checkAuthMiddleware(Role.RESTAURANT_OWNER));
 router.use(checkSubscriptionActive);
 
-router.get(
-  "/",
-  OrderManagmentController.getOrders,
-);
+router.get("/", OrderManagmentController.getOrders);
 
-router.delete(
-  "/:id",
-  OrderManagmentController.deleteOrder,
-);
+router.delete("/:id", OrderManagmentController.deleteOrder);
 
 export const OrderManagmentRouter = router;

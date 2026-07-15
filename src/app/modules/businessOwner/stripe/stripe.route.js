@@ -17,10 +17,7 @@ router.post(
   StripeController.updateStripeKeys,
 );
 
-router.get(
-  "/keys",
-  StripeController.getStripeKeys,
-);
+router.get("/keys", StripeController.getStripeKeys);
 
 router.delete(
   "/keys/:restaurantId",

@@ -20,14 +20,8 @@ router.post(
   AiTrainingController.createAgent,
 );
 
-router.delete(
-  "/delete/:id",
-  AiTrainingController.deleteAgent,
-);
+router.delete("/delete/:id", AiTrainingController.deleteAgent);
 
-router.get(
-  "/",
-  AiTrainingController.getAgentsByRestaurant,
-);
+router.get("/", AiTrainingController.getAgentsByRestaurant);
 
 export const AiTrainingRouter = router;

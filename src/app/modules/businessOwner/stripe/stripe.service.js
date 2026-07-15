@@ -8,7 +8,11 @@ const obfuscateKey = (key) => {
   return `${key.slice(0, 7)}...${key.slice(-4)}`;
 };
 
-const updateStripeKeysInDB = async (userId, stripeSecretKey, stripePublishableKey) => {
+const updateStripeKeysInDB = async (
+  userId,
+  stripeSecretKey,
+  stripePublishableKey,
+) => {
   // 1. Find the restaurant associated with this business owner
   const userRestaurant = await prisma.user_restaurant.findFirst({
     where: { user_id: userId },
@@ -34,7 +38,8 @@ const updateStripeKeysInDB = async (userId, stripeSecretKey, stripePublishableKe
 
   if (
     existingRestaurant &&
-    (existingRestaurant.stripe_secret_key || existingRestaurant.stripe_publishable_key)
+    (existingRestaurant.stripe_secret_key ||
+      existingRestaurant.stripe_publishable_key)
   ) {
     throw new DevBuildError(
       "Stripe keys are already configured. Please delete the existing configuration first before adding new keys.",
@@ -90,7 +95,9 @@ const getStripeKeysFromDB = async (userId) => {
     restaurantId,
     stripePublishableKey: restaurant.stripe_publishable_key || null,
     stripeSecretKey: obfuscateKey(restaurant.stripe_secret_key),
-    isConnected: !!(restaurant.stripe_secret_key && restaurant.stripe_publishable_key),
+    isConnected: !!(
+      restaurant.stripe_secret_key && restaurant.stripe_publishable_key
+    ),
   };
 };
 

@@ -28,7 +28,6 @@ const moduleRoutes = [
   },
 
   // System Owner Routes
-
   {
     path: "/system-owner/tenants",
     route: TenantsRouter,

@@ -65,7 +65,10 @@ const createStripeCheckoutSession = async (user, planId, billingCycle) => {
   }
 
   // Frontend Success/Cancel URLs
-  const frontendUrl = process.env.FRONT_END_URL || process.env.FRONTEND_URL || "http://localhost:3000";
+  const frontendUrl =
+    process.env.FRONT_END_URL ||
+    process.env.FRONTEND_URL ||
+    "http://localhost:3000";
   const successUrl = `${frontendUrl}/owner/subscription?session_id={CHECKOUT_SESSION_ID}`;
   const cancelUrl = `${frontendUrl}/owner/subscription`;
 
@@ -190,7 +193,7 @@ const processStripeWebhook = async (event) => {
                 description: `Overage charges: ${overageMinutes} additional minutes @ ${overageRate.toFixed(2)} DKK/min`,
               });
               console.log(
-                `Created overage invoice item of DKK ${overageAmount} for Subscription ${dbSubscription.id} (Overage: ${overageMinutes} mins)`
+                `Created overage invoice item of DKK ${overageAmount} for Subscription ${dbSubscription.id} (Overage: ${overageMinutes} mins)`,
               );
             }
           }
@@ -244,9 +247,13 @@ const processStripeWebhook = async (event) => {
               current_month: newStartDate,
             },
           });
-          console.log(`Initialized new usage cycle for Subscription ${dbSubscription.id}`);
+          console.log(
+            `Initialized new usage cycle for Subscription ${dbSubscription.id}`,
+          );
         } else {
-          console.log(`Usage cycle already initialized for Subscription ${dbSubscription.id}`);
+          console.log(
+            `Usage cycle already initialized for Subscription ${dbSubscription.id}`,
+          );
         }
       }
     }
@@ -269,7 +276,9 @@ const processStripeWebhook = async (event) => {
         where: query,
       });
 
-      const actualRestaurantId = dbSubscription ? dbSubscription.restaurant_id : restaurantId;
+      const actualRestaurantId = dbSubscription
+        ? dbSubscription.restaurant_id
+        : restaurantId;
 
       if (actualRestaurantId) {
         await prisma.subscriptions.updateMany({

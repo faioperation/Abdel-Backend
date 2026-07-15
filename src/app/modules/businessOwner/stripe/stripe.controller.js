@@ -57,7 +57,10 @@ const deleteStripeKeys = async (req, res) => {
     const userId = req.user.id;
     const { restaurantId } = req.params;
 
-    const result = await StripeService.deleteStripeKeysFromDB(userId, restaurantId);
+    const result = await StripeService.deleteStripeKeysFromDB(
+      userId,
+      restaurantId,
+    );
 
     return res.status(StatusCodes.OK).json({
       success: true,

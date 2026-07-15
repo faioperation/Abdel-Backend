@@ -457,7 +457,12 @@ const saveCallFromWebhook = async (message) => {
       );
 
       // Increment subscription usage orders count
-      await SubscriptionPlanService.incrementSubscriptionUsage(restaurantId, 0, false, true);
+      await SubscriptionPlanService.incrementSubscriptionUsage(
+        restaurantId,
+        0,
+        false,
+        true,
+      );
 
       // Generate payment link and send via SMS (async)
       PaymentService.generateAndSendPaymentLink(order.id).catch((err) => {
@@ -723,7 +728,12 @@ const processToolCalls = async (message) => {
             );
 
             // Increment subscription usage orders count
-            await SubscriptionPlanService.incrementSubscriptionUsage(restaurantId, 0, false, true);
+            await SubscriptionPlanService.incrementSubscriptionUsage(
+              restaurantId,
+              0,
+              false,
+              true,
+            );
 
             // Check if Stripe is configured for this restaurant
             const restaurantInfo = await prisma.restaurants.findUnique({
@@ -734,7 +744,10 @@ const processToolCalls = async (message) => {
 
             if (!hasStripe) {
               // Automatically queue print jobs for any registered printers immediately (cash order)
-              await PrinterService.queuePrintJobsForOrder(restaurantId, order.id);
+              await PrinterService.queuePrintJobsForOrder(
+                restaurantId,
+                order.id,
+              );
             }
           }
 

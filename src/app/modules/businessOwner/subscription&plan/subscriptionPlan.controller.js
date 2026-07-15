@@ -52,7 +52,7 @@ const getMySubscription = async (req, res) => {
   try {
     const result = await SubscriptionPlanService.getMySubscription(
       prisma,
-      req.user
+      req.user,
     );
     return res.status(StatusCodes.OK).json({
       success: true,

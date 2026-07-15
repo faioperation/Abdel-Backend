@@ -125,7 +125,7 @@ const getMySubscription = async (prisma, user) => {
   if (!restaurant) {
     throw new DevBuildError(
       "Restaurant not found for this user",
-      StatusCodes.NOT_FOUND
+      StatusCodes.NOT_FOUND,
     );
   }
 
